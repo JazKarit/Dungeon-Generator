@@ -188,4 +188,50 @@ public class Generator : MonoBehaviour
     {
         
     }
+
+
+    int[,] GenerateBosses()
+    {
+        int[,] bossCoords = new int[4,2];
+        int bossX = 0;
+        int bossZ = 0;
+        int minDist = 5;
+        int maxDist = 50;
+        int minDistBtwnBoss = 3;
+        //Random rnd = new Random();
+
+        for(int k=0;k<4;k++)
+        {
+            
+            bossX = Random.Range(minDist, maxDist);
+            bossX = bossX * (Random.Range(0, 2) * 2 - 1); //ctrl - vs +
+            
+            bossZ = Random.Range(minDist, maxDist);
+            bossZ = bossZ * (Random.Range(0, 2) * 2 - 1); //ctrl - vs +
+
+            bossCoords[k,0]=bossX;
+            bossCoords[k,1]=bossZ;
+
+            //validity check
+            for(int j=0;j<4;j++)
+            {
+                if(j==k)
+                {
+
+                }
+                else
+                {
+                    if(Mathf.Abs(bossCoords[j,0]-bossCoords[k,0])<= minDistBtwnBoss && Mathf.Abs(bossCoords[j,1]-bossCoords[k,1]) <= minDistBtwnBoss ) //if pair of coords already exist
+                    {
+                        k--; //re-generate this set of coords
+                    }
+                }
+            }
+        }
+
+        return bossCoords;
+
+
+    }
+
 }
