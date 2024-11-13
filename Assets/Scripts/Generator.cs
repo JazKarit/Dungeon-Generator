@@ -180,7 +180,8 @@ public class Generator : MonoBehaviour
         roomPuzzleGeometry.rotation = 2;
 
         RenderRoomPuzzle(roomPuzzleGeometry, 0f, 0.8f);
-        
+
+        int[,] bossCoords =  GenerateBosses();
     }
 
     // Update is called once per frame
@@ -229,9 +230,11 @@ public class Generator : MonoBehaviour
             }
         }
 
+        for(int j=0;j<4;j++)
+        {
+            RenderRoom(bossCoords[j,0], bossCoords[j,1], 3, 3, Color.white);
+        }    
         return bossCoords;
-
-
     }
 
 }
