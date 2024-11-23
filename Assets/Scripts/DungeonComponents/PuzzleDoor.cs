@@ -7,6 +7,25 @@ class PuzzleDoor : IComponentGeometry
     private Door location;
     private bool rendered;
 
+    private int index = -1;
+
+    private List<IComponentGeometry> adjacentComponents;
+
+    public List<IComponentGeometry> GetAdjacentComponents()
+    {
+        return adjacentComponents;
+    }
+
+    public void AddAdjComponent(IComponentGeometry component)
+    {
+        adjacentComponents.Add(component);
+    }
+
+    public void RemoveAdjComponent(int index)
+    {
+        adjacentComponents.RemoveAt(index);
+    }
+
     public PuzzleDoor(Door location) 
     {
         this.location = location;
@@ -37,6 +56,11 @@ class PuzzleDoor : IComponentGeometry
         return new List<Door>();
     }
 
+    public List<Door> GetDoorwaysWithDoors()
+    {
+        return new List<Door> {location};
+    }
+
     public List<Door> GetEntrances()
     {
         return new List<Door> {location};
@@ -54,5 +78,15 @@ class PuzzleDoor : IComponentGeometry
             this.location.Render(Color.black);
             rendered = true;
         }
+    }
+
+    public void SetIndex(int i)
+    {
+        index = i;
+    }
+
+    public int GetIndex()
+    {
+        return index;
     }
 }

@@ -16,7 +16,7 @@ public enum Direction
     S
 };
 
-interface IComponentGeometry
+public interface IComponentGeometry
 {
     public void PlaceStartAtGlobalLocation(Door location);
 
@@ -26,11 +26,18 @@ interface IComponentGeometry
 
     public List<Door> GetDoorways();
 
+    //public List<Door> GetExpandableDoors();
+
     public List<Door> GetDoorwaysWithoutDoors();
+    public List<Door> GetDoorwaysWithDoors();
 
     public List<Door> GetEntrances();
 
     public List<Door> GetExits();
 
     public void Render();
+
+    public void SetIndex(int i);
+
+    public int GetIndex();
 }

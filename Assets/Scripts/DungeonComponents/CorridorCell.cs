@@ -7,6 +7,25 @@ public class CorridorCell : IComponentGeometry
     private (int x, int z) location;
     private bool isRendered;
 
+    private int index = -1;
+
+    private List<IComponentGeometry> adjacentComponents;
+
+    public List<IComponentGeometry> GetAdjacentComponents()
+    {
+        return adjacentComponents;
+    }
+
+    public void AddAdjComponent(IComponentGeometry component)
+    {
+        adjacentComponents.Add(component);
+    }
+
+    public void RemoveAdjComponent(int index)
+    {
+        adjacentComponents.RemoveAt(index);
+    }
+
     public CorridorCell()
     {
 
@@ -47,6 +66,11 @@ public class CorridorCell : IComponentGeometry
         return GetDoorways();
     }
 
+    public List<Door> GetDoorwaysWithDoors()
+    {
+        return new List<Door>();
+    }
+
     public List<Door> GetEntrances()
     {  
         return GetDoorways();
@@ -67,6 +91,16 @@ public class CorridorCell : IComponentGeometry
             cell.GetComponent<Renderer>().material.color = Color.white;
             isRendered = true;
         }
+    }
+
+    public void SetIndex(int i)
+    {
+        index = i;
+    }
+
+    public int GetIndex()
+    {
+        return index;
     }
 }
 

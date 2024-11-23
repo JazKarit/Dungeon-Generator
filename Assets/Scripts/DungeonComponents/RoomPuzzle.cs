@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -15,7 +14,24 @@ class RoomPuzzle : IComponentGeometry
 
     private bool isRendered = false;
 
+    private List<IComponentGeometry> adjacentComponents;
 
+    private int index = -1;
+
+    public List<IComponentGeometry> GetAdjacentComponents()
+    {
+        return adjacentComponents;
+    }
+
+    public void AddAdjComponent(IComponentGeometry component)
+    {
+        adjacentComponents.Add(component);
+    }
+
+    public void RemoveAdjComponent(int index)
+    {
+        adjacentComponents.RemoveAt(index);
+    }
 
     public RoomPuzzle(Door localStartPosition, Door localEndPosition, bool [,] filledCells) 
     {
@@ -71,11 +87,11 @@ class RoomPuzzle : IComponentGeometry
     public List<(int, int)> GetGlobalCellsCovered()
     {
         List<(int x, int z)> cells = new();
-        for (int z = 0; z < filledCells.GetLength(0); z++)
+        for (int x = 0; x < filledCells.GetLength(0); x++)
         {
-            for (int x = 0; x < filledCells.GetLength(1); x++)
+            for (int z = 0; z < filledCells.GetLength(1); z++)
             {
-                if(filledCells[z,x])
+                if(filledCells[x,z])
                 {
                     cells.Add(GetGlobalCoordinates(x,z));
                 }
@@ -111,6 +127,11 @@ class RoomPuzzle : IComponentGeometry
         return new List<Door>();
     }
 
+    public List<Door> GetDoorwaysWithDoors()
+    {
+        return GetDoorways();
+    }
+
     public List<Door> GetEntrances()
     {
         return new List<Door> {GetGlobalStartLocation()};
@@ -125,17 +146,28 @@ class RoomPuzzle : IComponentGeometry
     {
         if (!isRendered)
         {
+            Color color = Color.HSVToRGB(Random.Range(0f,1f), 0.7f, 0.7f);
             foreach ((int x, int z) cellCoord in GetGlobalCellsCovered())
             {
                 GameObject cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 cell.transform.position = new Vector3(cellCoord.x, 0.5f, cellCoord.z);
                 cell.transform.localScale = new Vector3(0.9f, 1, 0.9f);
-                cell.GetComponent<Renderer>().material.color = Color.yellow;
+                cell.GetComponent<Renderer>().material.color = color;
             }
 
             GetGlobalStartLocation().Render(Color.green);
             GetGlobalEndLocation().Render(Color.red);
             isRendered = true;
         }
+    }
+
+    public void SetIndex(int i)
+    {
+        index = i;
+    }
+
+    public int GetIndex()
+    {
+        return index;
     }
 }
