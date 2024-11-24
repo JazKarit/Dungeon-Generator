@@ -71,6 +71,11 @@ public class CorridorCell : IComponentGeometry
         return new List<Door>();
     }
 
+    public List<Door> GetWalls()
+    {
+        return new List<Door>();
+    }
+
     public List<Door> GetEntrances()
     {  
         return GetDoorways();

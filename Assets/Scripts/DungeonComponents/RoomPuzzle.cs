@@ -18,6 +18,7 @@ class RoomPuzzle : IComponentGeometry
 
     private int index = -1;
 
+    private List<Door> walls;
     public List<IComponentGeometry> GetAdjacentComponents()
     {
         return adjacentComponents;
@@ -33,11 +34,19 @@ class RoomPuzzle : IComponentGeometry
         adjacentComponents.RemoveAt(index);
     }
 
-    public RoomPuzzle(Door localStartPosition, Door localEndPosition, bool [,] filledCells) 
+    public RoomPuzzle(Door localStartPosition, Door localEndPosition, bool [,] filledCells, List<Door> walls = null) 
     {
         this.localStartPosition = localStartPosition;
         this.localEndPosition = localEndPosition;
         this.filledCells = filledCells;
+        if (walls is null)
+        {
+            this.walls = new List<Door>();
+        }
+        else
+        {
+            this.walls = walls;
+        }
     }
 
     private (int, int) GetTransform(int x, int z)
@@ -100,6 +109,12 @@ class RoomPuzzle : IComponentGeometry
         return cells;
     }
 
+    private Door GetGlobalDoorLocation(Door localDoor)
+    {
+        (int x, int z) globalStartCell = GetGlobalCoordinates(localDoor.GetStartCell().x,localDoor.GetStartCell().z);
+        return new Door(globalStartCell.x,globalStartCell.z,(Direction)(((int)localDoor.direction + (int)this.mapDirectionLocalE) % 4));
+    }
+
     private Door GetGlobalStartLocation()
     {
         (int x, int z) globalStartCell = GetGlobalCoordinates(localStartPosition.GetStartCell().x,localStartPosition.GetStartCell().z);
@@ -140,6 +155,16 @@ class RoomPuzzle : IComponentGeometry
     public List<Door> GetExits()
     {
         return new List<Door> {GetGlobalEndLocation()};
+    }
+
+    public List<Door> GetWalls()
+    {
+        var globalWalls = new List<Door>();
+        foreach (var wall in this.walls)
+        {
+            globalWalls.Add(GetGlobalDoorLocation(wall));
+        }
+        return globalWalls;
     }
 
     public void Render()

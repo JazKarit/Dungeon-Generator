@@ -31,6 +31,8 @@ public interface IComponentGeometry
     public List<Door> GetDoorwaysWithoutDoors();
     public List<Door> GetDoorwaysWithDoors();
 
+    public List<Door> GetWalls();
+
     public List<Door> GetEntrances();
 
     public List<Door> GetExits();

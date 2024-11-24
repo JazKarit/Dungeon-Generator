@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Generator : MonoBehaviour
 {
+    private int i = 0;
     private Map map;
 
     void Start()
@@ -31,17 +32,18 @@ public class Generator : MonoBehaviour
         var puzzleRoom2 = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,1,Direction.E), filledCells2);
         puzzleRoom2.PlaceStartAtGlobalLocation(new Door(0,0,Direction.E));
 
-        map.AddComponent(puzzleRoom2);
-        map.AddComponent(new CorridorCell(0,1));
-        map.AddComponent(new CorridorCell(0,2));
-        map.AddComponent(new CorridorCell(1,2));
-        map.AddComponent(new CorridorCell(2,2));
-        map.AddComponent(new CorridorCell(3,2));
-        map.AddComponent(new CorridorCell(3,1));
-        map.AddComponent(new CorridorCell(3,0));
-        map.AddComponent(new CorridorCell(-1,3));
-        map.AddComponent(new CorridorCell(-1,0));
-        map.AddComponent(new CorridorCell(-1,3));
+        // map.AddComponent(puzzleRoom2);
+        // map.AddComponent(new CorridorCell(0,1));
+        // map.AddComponent(new CorridorCell(0,2));
+        // map.AddComponent(new CorridorCell(1,2));
+        // map.AddComponent(new CorridorCell(2,2));
+        // map.AddComponent(new CorridorCell(3,2));
+        // map.AddComponent(new CorridorCell(3,1));
+        // map.AddComponent(new CorridorCell(3,0));
+        // map.AddComponent(new CorridorCell(-1,3));
+        // map.AddComponent(new CorridorCell(-1,0));
+        // map.AddComponent(new CorridorCell(-1,3));
+        // map.AddComponent(new CorridorCell(0,3));
 
         var puzzleRoom3 = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,1,Direction.E), filledCells2);
         puzzleRoom3.PlaceStartAtGlobalLocation(new Door(-1,3,Direction.S));
@@ -67,7 +69,12 @@ public class Generator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-       //map.RandomExpansion(1);
-       //map.Render();
+      
+       i++;
+       if (i%20 == 0)
+       {
+          map.RandomExpansion(1);
+          map.Render();
+       }
     }
 }

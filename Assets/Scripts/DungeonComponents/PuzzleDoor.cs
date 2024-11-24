@@ -61,6 +61,12 @@ class PuzzleDoor : IComponentGeometry
         return new List<Door> {location};
     }
 
+    public List<Door> GetWalls()
+    {
+        return new List<Door>();
+    }
+
+
     public List<Door> GetEntrances()
     {
         return new List<Door> {location};

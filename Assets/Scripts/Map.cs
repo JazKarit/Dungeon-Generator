@@ -10,6 +10,8 @@ class Map
     private List<IComponentGeometry> components = new();
 
     private List<Door> doors = new();
+    
+    private List<Door> walls = new();
 
     private List<(int,int)> cells = new();
 
@@ -57,7 +59,7 @@ class Map
                 (int x, int z) cell = door.GetDestinationCell();
 
                 // Ensure that destination cell is empty and that there is no door in the spot
-                if (!CellCollidesWithMap(cell) && !DoorCollidesWithMap(door))
+                if (!CellCollidesWithMap(cell) && !DoorOrWallCollidesWithMap(door))
                 {
                     doorways.Add(door);
                 }
@@ -117,12 +119,12 @@ class Map
     }
 
 
-    private bool DoorCollidesWithMap(Door door)
+    private bool DoorExistsInMap(Door door)
     {
-        return DoorsCollideWithMap(new List<Door> {door});
+        return ExistDoorInMap(new List<Door> {door});
     }
 
-    private bool DoorsCollideWithMap(List<Door> cDoors)
+    private bool ExistDoorInMap(List<Door> cDoors)
     {
         foreach (Door door in cDoors)
         {
@@ -137,13 +139,41 @@ class Map
         return false;
     }
 
+    private bool DoorOrWallCollidesWithMap(Door door)
+    {
+        return DoorsAndWallsCollideWithMap(new List<Door> {door});
+    }
+
+    private bool DoorsAndWallsCollideWithMap(List<Door> cDoorsAndWalls)
+    {
+        foreach (Door door in cDoorsAndWalls)
+        {
+            foreach (Door mapDoor in doors)
+            {
+                if (door.IsEqual(mapDoor))
+                {
+                    return true;
+                }
+            }
+            foreach (Door mapWall in walls)
+            {
+                if (door.IsEqual(mapWall))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private bool ValidityCheck(IComponentGeometry component)
     {
         // TODO Add blocking doors
-        var cDoors = component.GetDoors();
+        var cDoorsAndWalls = component.GetDoors();
+        cDoorsAndWalls.AddRange(component.GetWalls());
         var cCells = component.GetGlobalCellsCovered();
         
-        return !CellsCollideWithMap(cCells) && !DoorsCollideWithMap(cDoors) && !ConnectedComponentsConnectAcrossPuzzle(component);
+        return !CellsCollideWithMap(cCells) && !DoorsAndWallsCollideWithMap(cDoorsAndWalls) && !CreatesInvalidPuzzleConnection(component);
     }
 
 
@@ -194,7 +224,7 @@ class Map
         foreach (var doorway in component.GetDoorwaysWithoutDoors())
         {
             // Only return cmpnts connected with a doorway without a door
-            if (!DoorCollidesWithMap(doorway)){
+            if (!DoorOrWallCollidesWithMap(doorway)){
                 var dest = doorway.GetDestinationCell();
                 var cmpt = GetComponentIndexAt(dest);
                 if (cmpt != -1)
@@ -221,7 +251,7 @@ class Map
         foreach (var doorway in component.GetDoorwaysWithoutDoors())
         {
             // Only return cmpnts connected  through doors
-            if (DoorCollidesWithMap(doorway)){
+            if (DoorExistsInMap(doorway)){
                 var dest = doorway.GetDestinationCell();
                 var cmpt = GetComponentIndexAt(dest);
                 if (cmpt != -1)
@@ -250,7 +280,12 @@ class Map
         return GetAdjacentComponentIndexesWithoutDoor(components[componentInd]);
     }
 
-    public bool ConnectedComponentsConnectAcrossPuzzle(IComponentGeometry component)
+    public bool CreatesInvalidPuzzleConnection(IComponentGeometry component)
+    {
+        return ConnectedComponentsConnectAcrossPuzzle(component) || PuzzleConnectsToSameComponent(component);
+    }
+
+    private bool ConnectedComponentsConnectAcrossPuzzle(IComponentGeometry component)
     {
         var connectedComponents = GetConnectedComponents(component);
         var componentsAcrossADoor = new List<int>();
@@ -269,6 +304,32 @@ class Map
                     return true;
                 }
                 componentsAcrossADoor.Add(acrossDoorComponent);
+            }
+        }
+        
+        return false;
+    }
+
+    public bool PuzzleConnectsToSameComponent(IComponentGeometry component)
+    {
+        var doors = component.GetDoorwaysWithDoors();
+        var adjCmpts = new List<IComponentGeometry>();
+        foreach (var door in doors)
+        {
+            var dest = door.GetDestinationCell();
+            var cmpt = GetComponentAt(dest);
+            if (cmpt is not null)
+            {
+                var connections = GetConnectedComponents(cmpt);
+                foreach (var connection in connections)
+                {
+                    // If we alraedy saw a connection of the component, they both connect to the puzzle we added
+                    if (adjCmpts.Contains(connection))
+                    {
+                        return true;
+                    }
+                }
+                adjCmpts.Add(cmpt);
             }
         }
         
@@ -358,6 +419,7 @@ class Map
 
         var cDoors = component.GetDoors();
         var cCells = component.GetGlobalCellsCovered();
+        var cWalls = component.GetWalls();
 
        // SetAdjacentComponents(component);
     
@@ -366,6 +428,7 @@ class Map
 
         doors.AddRange(cDoors);
         cells.AddRange(cCells);
+        walls.AddRange(cWalls);
 
         
 
@@ -415,6 +478,7 @@ class Map
 
     public void RandomExpansion(int iterations)
     {
+        // TODO: Maintain mincut 3 as graph is grown?
         for (int i = 0; i < iterations; i++)
         {
             int r;
@@ -423,13 +487,20 @@ class Map
             if(empytDoorways.Count > 0)
             {
                 r = Random.Range(0,empytDoorways.Count);
+                bool [,] filledCells = {{true}};
+                var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
+                
+                
                 // bool [,] filledCells = {{true,false},{true,true}};
                 // var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,1,Direction.E), filledCells);
-                bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
-                var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
+                //bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
+                //var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
+                
                 puzzleRoom.PlaceStartAtGlobalLocation(empytDoorways[r]);
                 AddComponent(puzzleRoom);
                 //AddComponent(new PuzzleDoor(empytDoorways[r]));
+
+
             }
         
             List<Door> doorways = GetAvailableDoorways();
