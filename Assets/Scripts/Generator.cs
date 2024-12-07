@@ -112,15 +112,14 @@ public class Generator : MonoBehaviour
     //         }
     //     }
      //  }
-       if (i%30 == 0)// && i < 1000)
+       if (i%10 == 0)// && i < 1000)
        {
-          map.RandomExpansion(1); 
+          map.EST(1); 
           map.Render();
        }
-    //    if (i == 1000)
+    //    if (i % 1000 == 0)
     //    {
-    //     map.Render();
+    //     map.graph.PrintGraph();
     //    }
-
     }
 }

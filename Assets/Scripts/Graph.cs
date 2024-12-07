@@ -46,4 +46,12 @@ public class Graph
     {
         return nodes.Values;
     }
+
+    public void PrintGraph()
+    {
+        foreach (var node in nodes.Values)
+        {
+            UnityEngine.Debug.Log(node.ToStringWithNeighbors());
+        }
+    }
 }

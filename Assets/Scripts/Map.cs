@@ -11,7 +11,7 @@ class Map
     //private List<IComponentGeometry> components = new();
     public Dictionary<Guid,IComponentGeometry> components = new();
 
-    private Graph graph = new();
+    public Graph graph = new();
     private List<Door> doors = new();
     
     private List<Door> walls = new();
@@ -337,6 +337,8 @@ class Map
 
     public bool CreatesInvalidPuzzleConnection(IComponentGeometry component)
     {
+        // IMPORTANT: This method has been made more strict so two puzzles cannot connect the same two nodes
+
         //if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
         if(component.GetType() == ComponentType.corridor)
         {
@@ -373,6 +375,10 @@ class Map
                 foreach (var neighbor in adjSuperCorridors[i].Neighbors)
                 {
                     if(neighbor.Id == adjSuperCorridors[k].Id) return true;
+                    foreach (var secondNeighbor in neighbor.Neighbors)
+                    {
+                        if(secondNeighbor.Id == adjSuperCorridors[k].Id) return true;
+                    }
                 }
             }
         }
@@ -412,7 +418,16 @@ class Map
         var doorwayDestCell2 = doorways[1].GetDestinationCell();
         if(!cellToComponent.ContainsKey(doorwayDestCell1)) return false;
         if(!cellToComponent.ContainsKey(doorwayDestCell2)) return false;
-        if(cellToComponent[doorwayDestCell1] == cellToComponent[doorwayDestCell2]) return true;
+        var c1 = cellToComponent[doorwayDestCell1];
+        var c2 = cellToComponent[doorwayDestCell2];
+        if(c1 == c2) return true;
+
+        //The super corridors already have a puzzle between them
+        foreach(var neighbor in graph.GetNode(c1).Neighbors)
+        {
+            if(neighbor.Id == c2) return true;
+        }
+
         return false;
 
 
@@ -695,41 +710,65 @@ class Map
         }
     }
 
+    /// <summary>
+    /// Expand nodes. Chance to expand is inv. prop. to neibors.
+    /// Chance to add a cell is (1/numCells) ^ (1/2) -> so 4 cells
+    /// is equal chance to add puzzle room or cell
+    /// </summary>
+    /// <param name="iterations"></param>
      public void EST(int iterations)
     {
+        
         // TODO: Maintain mincut 3 as graph is grown?
         for (int i = 0; i < iterations; i++)
         {
-            int r;
-            List<Door> empytDoorways = GetAvailableDoorwaysWithoutDoor();
+            List<INode> nodes = graph.GetAllNodes().ToList();
+            float [] weights = new float[nodes.Count];
 
-            if(empytDoorways.Count > 0)
+            for (int j = 0; j < nodes.Count; j++)
             {
-                r = UnityEngine.Random.Range(0,empytDoorways.Count);
-                bool [,] filledCells = {{true}};
-                var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
-                
-                
-                // bool [,] filledCells = {{true,false},{true,true}};
-                // var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,1,Direction.E), filledCells);
-                //bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
-                //var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
-                
-                puzzleRoom.PlaceStartAtGlobalLocation(empytDoorways[r]);
-                AddComponent(puzzleRoom);
-                //AddComponent(new PuzzleDoor(empytDoorways[r]));
-
-
+                weights[j] = 1f / (1f + nodes[j].Neighbors.Count);
             }
-        
-            List<Door> doorways = GetAvailableDoorways();
 
-            if (doorways.Count > 0)
+            int expandIndex = WeightedRandom.GetWeightedRandomIndex(weights);
+            
+            var expandNode = nodes[expandIndex];
+
+            if(expandNode is SuperCorridor component)
             {
-                r = UnityEngine.Random.Range(0,doorways.Count);
-                var cell = new CorridorCell();
-                cell.PlaceStartAtGlobalLocation(doorways[r]);
-                AddComponent(cell);
+                int numCells = component.GetGlobalCellsCovered().Count;  
+                
+                float r = UnityEngine.Random.value;
+
+                if (r <  Mathf.Exp(-0.04f*numCells))
+                {
+                    // Add Cell
+                    var doorways = component.GetAvailableDoorways();
+                    if (doorways.Count > 0)
+                    {
+                        var ind = UnityEngine.Random.Range(0,doorways.Count);
+                        var cell = new CorridorCell();
+                        cell.PlaceStartAtGlobalLocation(doorways[ind]);
+                        AddComponent(cell);
+                    }
+                } 
+                else
+                {
+                    // Add PuzzleRoom
+                    var doorways = component.GetAvailableDoorwaysWithoutDoor();
+                    if (doorways.Count > 0)
+                    {
+                        var ind = UnityEngine.Random.Range(0,doorways.Count);
+                        bool [,] filledCells = {{true}};
+                        var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
+                        puzzleRoom.PlaceStartAtGlobalLocation(doorways[ind]);
+                        AddComponent(puzzleRoom);
+                    }
+                }
+            }
+            else
+            {
+                UnityEngine.Debug.Log("Uh oh");
             }
         }
     }

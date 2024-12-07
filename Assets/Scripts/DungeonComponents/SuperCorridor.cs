@@ -131,6 +131,61 @@ public class SuperCorridor : IComponentGeometry, INode
         return exits;
     }
 
+    // public bool RemoveDoorway(Door remDoorway)
+    // {
+    //     // remove it from doorwaysWithoutDoors as well if it didn't have a door
+    //     for (doorway in doorwaysWithoutDoors)
+    //     {
+    //         if(doorway.IsEqual(remDoorway))
+    //         {
+    //             doors.Remove(door);
+    //         }
+    //     }
+
+    //     for (doorway in doorways)
+    //     {
+    //         if(doorway.IsEqual(remDoorway))
+    //         {
+    //             doors.Remove(doorway);
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    //TODO: optimize to hold this data in a better way
+    public List<Door> GetAvailableDoorways()
+    {
+        List<Door> doorways = new List<Door>();
+        foreach (Door doorway in GetDoorways())
+        {
+            (int x, int z) cell = doorway.GetDestinationCell();
+
+            // Ensure that destination cell is empty
+            if (!globalCellsCovered.Contains(cell))
+            {
+                doorways.Add(doorway);
+            }
+        }
+        return doorways;
+    }
+
+    //TODO: optimize to hold this data in a better way
+    public List<Door> GetAvailableDoorwaysWithoutDoor()
+    {
+        foreach (Door door in GetDoorwaysWithoutDoors())
+        {
+            (int x, int z) cell = door.GetDestinationCell();
+
+            // Ensure that destination cell is empty and that there is no door in the spot
+            if (!globalCellsCovered.Contains(cell) && !doors.Contains(door) && !walls.Contains(door))
+            {
+                doorways.Add(door);
+            }
+        }
+        return doorways;
+    }
+
     public void Render()
     {
         foreach(var cell in globalCellsCovered)
@@ -167,6 +222,20 @@ public class SuperCorridor : IComponentGeometry, INode
         {
             Neighbors.Add(neighbor);
         }
+    }
+
+    public override string ToString()
+    {
+        double avgX = globalCellsCovered.Average(item => item.x);
+        double avgZ = globalCellsCovered.Average(item => item.z);
+
+        return $"Super Corridor: ({avgX},{avgZ}) - {globalCellsCovered.Count} cells"; 
+    }
+
+    public string ToStringWithNeighbors()
+    {
+        var neighbors = string.Join(", ", Neighbors.Select(n => n.ToString()));
+        return $"Node {ToString()}: [{neighbors}]";
     }
 }
 
