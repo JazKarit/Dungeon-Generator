@@ -1,21 +1,24 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using System;
 
 
 class Map
 {
 
     // private int [,] cells;
-    private List<IComponentGeometry> components = new();
+    //private List<IComponentGeometry> components = new();
+    public Dictionary<Guid,IComponentGeometry> components = new();
 
+    private Graph graph = new();
     private List<Door> doors = new();
     
     private List<Door> walls = new();
 
     private List<(int,int)> cells = new();
 
-    private Dictionary<(int,int),int> cellToComponent = new();
+    private Dictionary<(int,int),Guid> cellToComponent = new();
 
     //private List<Door> expandableDoorways;
 
@@ -39,19 +42,19 @@ class Map
         return null;
     }
 
-    public int GetComponentIndexAt((int x, int z) cell)
+    public Guid GetComponentIndexAt((int x, int z) cell)
     {
         if (cellToComponent.ContainsKey(cell))
         {
             return cellToComponent[cell];
         }
-        return -1;
+        return Guid.Empty;
     }
 
     public List<Door> GetAvailableDoorwaysWithoutDoor()
     {
         List<Door> doorways = new List<Door>();
-        foreach(IComponentGeometry component in this.components)
+        foreach(IComponentGeometry component in this.components.Values)
         {
             List<Door> cDoorways = component.GetDoorwaysWithoutDoors();
             foreach (Door door in cDoorways)
@@ -81,7 +84,7 @@ class Map
     public List<Door> GetAvailableDoorways()
     {
         List<Door> doorways = new List<Door>();
-        foreach(IComponentGeometry component in this.components)
+        foreach(IComponentGeometry component in this.components.Values)
         {
             List<Door> cDoorways = component.GetDoorways();
             foreach (Door door in cDoorways)
@@ -166,14 +169,63 @@ class Map
         return false;
     }
 
+    private bool DoorsCollideWithMap(List<Door> cDoors)
+    {
+        foreach (Door door in cDoors)
+        {
+            foreach (Door mapDoor in doors)
+            {
+                if (door.IsEqual(mapDoor))
+                {
+                    return true;
+                }
+            }
+            
+            foreach (Door mapWall in walls)
+            {
+                if (door.IsEqual(mapWall))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private bool WallsCollideWithMap(List<Door> walls)
+    {
+        foreach (Door wall in walls)
+        {
+            foreach (Door mapDoor in doors)
+            {
+                if (wall.IsEqual(mapDoor))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
     private bool ValidityCheck(IComponentGeometry component)
     {
+        
         // TODO Add blocking doors
         var cDoorsAndWalls = component.GetDoors();
         cDoorsAndWalls.AddRange(component.GetWalls());
         var cCells = component.GetGlobalCellsCovered();
         
-        return !CellsCollideWithMap(cCells) && !DoorsAndWallsCollideWithMap(cDoorsAndWalls) && !CreatesInvalidPuzzleConnection(component);
+        //check that the cells don't collide with existing cells
+        //check that doors don't conflict with walls and doors
+        //check that walls con't conflict with doors
+        //check CreatesInvalidPuzzleConnection
+            ////if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
+            ////if puzzleroom, check that the puzzleroom start and end are not the same supercorridor 
+        // UnityEngine.Debug.Log(!CellsCollideWithMap(cCells));
+        // UnityEngine.Debug.Log(!DoorsCollideWithMap(component.GetDoors()));
+        // UnityEngine.Debug.Log(!WallsCollideWithMap(component.GetDoors()));
+        // UnityEngine.Debug.Log(!CreatesInvalidPuzzleConnection(component));
+        return !CellsCollideWithMap(cCells) && !DoorsCollideWithMap(component.GetDoors()) && !WallsCollideWithMap(component.GetDoors()) && !CreatesInvalidPuzzleConnection(component);
     }
 
 
@@ -212,22 +264,25 @@ class Map
         {
             var dest = doorway.GetDestinationCell();
             var cmpt = GetComponentAt(dest);
-            adjCmpts.Add(cmpt);
+            if (cmpt is not null)
+            {
+                adjCmpts.Add(cmpt);
+            }
         }
 
         return adjCmpts;
     }
 
-    private List<int> GetAdjacentComponentIndexesWithoutDoor(IComponentGeometry component)
+    private List<Guid> GetAdjacentComponentIndexesWithoutDoor(IComponentGeometry component)
     {
-        var adjCmpts = new List<int>();
+        var adjCmpts = new List<Guid>();
         foreach (var doorway in component.GetDoorwaysWithoutDoors())
         {
             // Only return cmpnts connected with a doorway without a door
             if (!DoorOrWallCollidesWithMap(doorway)){
                 var dest = doorway.GetDestinationCell();
                 var cmpt = GetComponentIndexAt(dest);
-                if (cmpt != -1)
+                if (cmpt != Guid.Empty)
                 {
                     var otherDoorways = components[cmpt].GetDoorways();
                     foreach (var otherDoorway in otherDoorways)
@@ -245,16 +300,16 @@ class Map
         return adjCmpts;
     }
 
-    private List<int> GetAdjacentComponentIndexesWithDoor(IComponentGeometry component)
+    private List<Guid> GetAdjacentComponentIndexesWithDoor(IComponentGeometry component)
     {
-        var adjCmpts = new List<int>();
+        var adjCmpts = new List<Guid>();
         foreach (var doorway in component.GetDoorwaysWithoutDoors())
         {
             // Only return cmpnts connected  through doors
             if (DoorExistsInMap(doorway)){
                 var dest = doorway.GetDestinationCell();
                 var cmpt = GetComponentIndexAt(dest);
-                if (cmpt != -1)
+                if (cmpt != Guid.Empty)
                 {
                     adjCmpts.Add(cmpt);
                 }
@@ -266,7 +321,7 @@ class Map
         {
             var dest = doorway.GetDestinationCell();
             var cmpt = GetComponentIndexAt(dest);
-            if (cmpt != -1)
+            if (cmpt != Guid.Empty)
             {
                 adjCmpts.Add(cmpt);
             }
@@ -275,20 +330,58 @@ class Map
         return adjCmpts;
     }
 
-    private List<int> GetAdjacentComponentIndexesWithoutDoor(int componentInd)
+    private List<Guid> GetAdjacentComponentIndexesWithoutDoor(Guid componentInd)
     {
         return GetAdjacentComponentIndexesWithoutDoor(components[componentInd]);
     }
 
     public bool CreatesInvalidPuzzleConnection(IComponentGeometry component)
     {
-        return ConnectedComponentsConnectAcrossPuzzle(component) || PuzzleConnectsToSameComponent(component);
+        //if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
+        if(component.GetType() == ComponentType.corridor)
+        {
+            return CorridorConnectsPuzzleConnectedSuperCorridors(component);
+        }
+        //if puzzleroom, check that the puzzleroom start and end are not the same supercorridor 
+        if(component.GetType() == ComponentType.puzzleRoom)
+        {
+            return PuzzleConnectsToSameSuperCorridor(component);
+        }
+        return CorridorConnectsPuzzleConnectedSuperCorridors(component) || PuzzleConnectsToSameSuperCorridor(component);
     }
 
-    private bool ConnectedComponentsConnectAcrossPuzzle(IComponentGeometry component)
+    //if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
+    private bool CorridorConnectsPuzzleConnectedSuperCorridors(IComponentGeometry component)
     {
+        var adjComponents = GetAdjacentComponents(component);
+
+        var adjSuperCorridors = new List<SuperCorridor>();
+
+        foreach (var adjComponent in adjComponents)
+        {
+            //UnityEngine.Debug.Log(adjComponent);
+            //UnityEngine.Debug.Log(adjComponents);
+            if (adjComponent.GetType() == ComponentType.superCorridor)
+            {
+                adjSuperCorridors.Add((SuperCorridor)adjComponent);
+            }
+        }
+        for (int i =0; i<adjSuperCorridors.Count-1;i++)
+        {
+            for (int k = i+1; k<adjSuperCorridors.Count;k++)
+            {
+                foreach (var neighbor in adjSuperCorridors[i].Neighbors)
+                {
+                    if(neighbor.Id == adjSuperCorridors[k].Id) return true;
+                }
+            }
+        }
+
+        return false;
+        
+        /*
         var connectedComponents = GetConnectedComponents(component);
-        var componentsAcrossADoor = new List<int>();
+        var componentsAcrossADoor = new List<Guid>();
 
         var cells = component.GetGlobalCellsCovered();
 
@@ -308,10 +401,22 @@ class Map
         }
         
         return false;
+        */
     }
 
-    public bool PuzzleConnectsToSameComponent(IComponentGeometry component)
-    {
+    //if puzzleroom, check that the puzzleroom start and end are not the same supercorridor 
+    public bool PuzzleConnectsToSameSuperCorridor(IComponentGeometry component)
+    {          
+        var doorways = component.GetDoorwaysWithDoors();
+        var doorwayDestCell1 = doorways[0].GetDestinationCell();
+        var doorwayDestCell2 = doorways[1].GetDestinationCell();
+        if(!cellToComponent.ContainsKey(doorwayDestCell1)) return false;
+        if(!cellToComponent.ContainsKey(doorwayDestCell2)) return false;
+        if(cellToComponent[doorwayDestCell1] == cellToComponent[doorwayDestCell2]) return true;
+        return false;
+
+
+        /*
         var doors = component.GetDoorwaysWithDoors();
         var adjCmpts = new List<IComponentGeometry>();
         foreach (var door in doors)
@@ -334,123 +439,192 @@ class Map
         }
         
         return false;
+        */
     }
 
     public List<IComponentGeometry> GetConnectedComponents(IComponentGeometry component)
     {
-        var connectedComponents = new List<IComponentGeometry> {component};
+        // var connectedComponents = new List<IComponentGeometry> {component};
 
-        var indecies = GetConnectedComponentIndecies(component);
+        // var indecies = GetConnectedComponentIndecies(component);
 
-        foreach (int index in indecies)
-        {
-            connectedComponents.Add(components[index]);
-        }
+        // foreach (Guid index in indecies)
+        // {
+        //     connectedComponents.Add(components[index]);
+        // }
 
-        // TODO: find out why this is neccesary
-        return connectedComponents.Distinct().ToList();
+        // // TODO: find out why this is neccesary
+        // return connectedComponents.Distinct().ToList();
+
+        return new List<IComponentGeometry>();
     }
 
-    private List<int> GetConnectedComponentIndecies(IComponentGeometry component)
+    private List<Guid> GetConnectedComponentIndecies(IComponentGeometry component)
     {
-        var connectedComponents = new List<int>();
-        var newConnections = GetAdjacentComponentIndexesWithoutDoor(component);
+        // var connectedComponents = new List<Guid>();
+        // var newConnections = GetAdjacentComponentIndexesWithoutDoor(component);
 
-        foreach (var connection in newConnections)
-        {
-            if (!connectedComponents.Contains(connection))
-            {
-                connectedComponents.Add(connection);
-            }
-        }
+        // foreach (var connection in newConnections)
+        // {
+        //     if (!connectedComponents.Contains(connection))
+        //     {
+        //         connectedComponents.Add(connection);
+        //     }
+        // }
         
-        foreach (var connection in newConnections)
-        {
-            var extendedConnection = GetConnectedComponents(connection, connectedComponents);
-            foreach (var c in extendedConnection)
-            {
-                if (!connectedComponents.Contains(c))
-                {
-                    connectedComponents.Add(connection);
-                }
-            }
-        }
+        // foreach (var connection in newConnections)
+        // {
+        //     var extendedConnection = GetConnectedComponents(connection, connectedComponents);
+        //     foreach (var c in extendedConnection)
+        //     {
+        //         if (!connectedComponents.Contains(c))
+        //         {
+        //             connectedComponents.Add(connection);
+        //         }
+        //     }
+        // }
 
-        return connectedComponents;
+        //return connectedComponents;
+
+        return new List<Guid>();
     }
 
     private List<int> GetConnectedComponents(int currCmpt, List<int> connectedComponents)
     {
-        var newConnections = GetAdjacentComponentIndexesWithoutDoor(currCmpt);
-        var connectionsToAdd = new List<int>();
+        // var newConnections = GetAdjacentComponentIndexesWithoutDoor(currCmpt);
+        // var connectionsToAdd = new List<int>();
 
-        foreach (var connection in newConnections)
-        {
-            if (connectedComponents.Contains(connection))
-            {
-                continue;   
-            }
-            connectionsToAdd.Add(connection);
-        }
+        // foreach (var connection in newConnections)
+        // {
+        //     if (connectedComponents.Contains(connection))
+        //     {
+        //         continue;   
+        //     }
+        //     connectionsToAdd.Add(connection);
+        // }
 
-        connectedComponents.AddRange(connectionsToAdd);
+        // connectedComponents.AddRange(connectionsToAdd);
         
-        foreach (var connection in connectionsToAdd)
-        {
-            connectedComponents.AddRange(GetConnectedComponents(connection, connectedComponents));
-        }
+        // foreach (var connection in connectionsToAdd)
+        // {
+        //     connectedComponents.AddRange(GetConnectedComponents(connection, connectedComponents));
+        // }
 
-        return connectedComponents;
+        // return connectedComponents;
+
+        return new List<int> ();
     }
 
     public bool AddComponent(IComponentGeometry component)
     {
+        //for now either expecting a IComponentGeometry of type corridor or puzzleRoom
 
-        int componentIndex = components.Count;
-
-        component.SetIndex(componentIndex);
-
+        
+        
         
 
         if (!ValidityCheck(component))
         {
             return false;
         }
+        
+
+
+
+        if (component.GetType() == ComponentType.puzzleRoom)
+        {
+            (var endCell_x, var endCell_z) = ((RoomPuzzle)component).GetGlobalEndLocation().GetDestinationCell(); 
+            var newCell = new CorridorCell(endCell_x,endCell_z);
+            AddComponent(newCell);
+            if (!ValidityCheck(component))
+            {
+                return false;
+            }
+
+            
+            var doorways = component.GetDoorwaysWithDoors();
+            var doorwayDestCell1 = doorways[0].GetDestinationCell();
+            var doorwayDestCell2 = doorways[1].GetDestinationCell();
+            if (cellToComponent.ContainsKey(doorwayDestCell1) && cellToComponent.ContainsKey(doorwayDestCell2))
+            {
+                graph.AddEdge(cellToComponent[doorwayDestCell1],cellToComponent[doorwayDestCell2]);            
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         var cDoors = component.GetDoors();
         var cCells = component.GetGlobalCellsCovered();
         var cWalls = component.GetWalls();
-
-       // SetAdjacentComponents(component);
-    
-
-
-
         doors.AddRange(cDoors);
         cells.AddRange(cCells);
         walls.AddRange(cWalls);
 
-        
-
-        // for (int i = 0; i < cDoors.Count; i++)
-        // {
-        //     getComponentForDoor.Add(componentIndex);
-        // }
-
-        foreach ((int,int) cCell in cCells)
+        if (component.GetType() == ComponentType.corridor)
         {
-            cellToComponent[cCell] = componentIndex;
+            List<SuperCorridor> adjSuperCorridors = new List<SuperCorridor>();
+            foreach (Door doorway in component.GetDoorways())
+            {
+                var newCell = doorway.GetDestinationCell();
+                IComponentGeometry adjComponent = GetComponentAt(newCell);
+                
+                if (adjComponent is not null && adjComponent.GetType() == ComponentType.superCorridor && !adjSuperCorridors.Contains(adjComponent))
+                {
+                    adjSuperCorridors.Add((SuperCorridor)adjComponent);
+                }
+            }
+                
+
+
+            //if its not part of a supercorridor (no corridors adjacent, just a door), make a new supercorridor
+            if (adjSuperCorridors.Count == 0)
+            {
+                component = new SuperCorridor(component);
+                graph.AddNode((SuperCorridor)component);
+            }
+            //if it touches 1 supercorridor, it becomes part of that supercorridor
+            else if (adjSuperCorridors.Count == 1)
+            {
+                adjSuperCorridors[0].AddComponent(component);
+                component = adjSuperCorridors[0];
+            }
+             //if it connects 2+ supercorridors, merge the corridors
+            else
+            {
+                adjSuperCorridors[0].AddComponent(component);
+                for(int i = 1; i < adjSuperCorridors.Count; i++)
+                {
+                    adjSuperCorridors[0].AddComponent((adjSuperCorridors[i]));
+                    components.Remove(adjSuperCorridors[i].Id);
+
+
+                    graph.RemoveNode(adjSuperCorridors[i].Id);
+
+                    //would want to merge nodes and remove isolated nodes 
+                }
+                component = adjSuperCorridors[0];
+            }
         }
 
-        components.Add(component);
+        foreach ((int,int) cCell in component.GetGlobalCellsCovered())
+        {
+            cellToComponent[cCell] = component.Id;
+        }
 
+        components[component.Id] = component;
+
+        //Debug.Log(components.Values.Count(c => c.GetType() == ComponentType.puzzleRoom));
         return true;
     }
 
     public void Render()
     {
-        foreach (IComponentGeometry component in components)
+
+        foreach (IComponentGeometry component in components.Values)
         {
+            List<GameObject> gameObjs = new List<GameObject>();
             component.Render();
         }
     }
@@ -476,6 +650,9 @@ class Map
     //     }
     // }
 
+
+    // Planner must add corridor cells off of puzzles
+
     public void RandomExpansion(int iterations)
     {
         // TODO: Maintain mincut 3 as graph is grown?
@@ -486,7 +663,49 @@ class Map
 
             if(empytDoorways.Count > 0)
             {
-                r = Random.Range(0,empytDoorways.Count);
+                r = UnityEngine.Random.Range(0,empytDoorways.Count);
+                bool [,] filledCells = {{true}};
+                var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
+                
+                
+                // bool [,] filledCells = {{true,false},{true,true}};
+                // var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,1,Direction.E), filledCells);
+                //bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
+                //var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
+                
+                puzzleRoom.PlaceStartAtGlobalLocation(empytDoorways[r]);
+
+                AddComponent(puzzleRoom);
+                //AddComponent(new PuzzleDoor(empytDoorways[r]));
+
+
+            }
+        
+            List<Door> doorways = GetAvailableDoorways();
+
+            if (doorways.Count > 0)
+            {
+                r = UnityEngine.Random.Range(0,doorways.Count);
+                var cell = new CorridorCell();
+                cell.PlaceStartAtGlobalLocation(doorways[r]);
+
+                
+                AddComponent(cell);
+            }
+        }
+    }
+
+     public void EST(int iterations)
+    {
+        // TODO: Maintain mincut 3 as graph is grown?
+        for (int i = 0; i < iterations; i++)
+        {
+            int r;
+            List<Door> empytDoorways = GetAvailableDoorwaysWithoutDoor();
+
+            if(empytDoorways.Count > 0)
+            {
+                r = UnityEngine.Random.Range(0,empytDoorways.Count);
                 bool [,] filledCells = {{true}};
                 var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
                 
@@ -507,7 +726,7 @@ class Map
 
             if (doorways.Count > 0)
             {
-                r = Random.Range(0,doorways.Count);
+                r = UnityEngine.Random.Range(0,doorways.Count);
                 var cell = new CorridorCell();
                 cell.PlaceStartAtGlobalLocation(doorways[r]);
                 AddComponent(cell);

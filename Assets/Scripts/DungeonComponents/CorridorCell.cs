@@ -6,10 +6,14 @@ public class CorridorCell : IComponentGeometry
 {
     private (int x, int z) location;
     private bool isRendered;
+    private ComponentType cType = ComponentType.corridor;
 
     private int index = -1;
 
     private List<IComponentGeometry> adjacentComponents;
+
+       //for INode
+    public Guid Id { get; set; } // Unique identifier for the node
 
     public List<IComponentGeometry> GetAdjacentComponents()
     {
@@ -28,12 +32,13 @@ public class CorridorCell : IComponentGeometry
 
     public CorridorCell()
     {
-
+        Id = Guid.NewGuid();
     }
 
     public CorridorCell(int x, int z) 
     {
         this.location = (x,z);
+        Id = Guid.NewGuid();
     }
 
     public void PlaceStartAtGlobalLocation(Door doorLocation)
@@ -106,6 +111,11 @@ public class CorridorCell : IComponentGeometry
     public int GetIndex()
     {
         return index;
+    }
+
+    public ComponentType GetType()
+    {
+        return cType;
     }
 }
 

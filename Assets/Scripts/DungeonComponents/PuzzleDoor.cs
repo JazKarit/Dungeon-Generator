@@ -1,9 +1,11 @@
-using System;
+/*using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 class PuzzleDoor : IComponentGeometry
 {
+    
+    private ComponentType cType = ComponentType.puzzleDoor;
     private Door location;
     private bool rendered;
 
@@ -95,4 +97,9 @@ class PuzzleDoor : IComponentGeometry
     {
         return index;
     }
-}
+
+    public ComponentType GetType()
+    {
+        return cType;
+    }
+}*/

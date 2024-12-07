@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 class RoomPuzzle : IComponentGeometry
 {
@@ -9,6 +10,7 @@ class RoomPuzzle : IComponentGeometry
     public bool [,] filledCells;
 
     private Direction mapDirectionLocalE;
+    private ComponentType cType = ComponentType.puzzleRoom;
 
     private (int x, int z) globalPos;
 
@@ -19,6 +21,12 @@ class RoomPuzzle : IComponentGeometry
     private int index = -1;
 
     private List<Door> walls;
+
+   //for INode
+    public Guid Id { get; set; } // Unique identifier for the node
+
+    private Color color;
+
     public List<IComponentGeometry> GetAdjacentComponents()
     {
         return adjacentComponents;
@@ -47,6 +55,8 @@ class RoomPuzzle : IComponentGeometry
         {
             this.walls = walls;
         }
+
+        Id = Guid.NewGuid();
     }
 
     private (int, int) GetTransform(int x, int z)
@@ -121,7 +131,7 @@ class RoomPuzzle : IComponentGeometry
         return new Door(globalStartCell.x,globalStartCell.z,(Direction)(((int)localStartPosition.direction + (int)this.mapDirectionLocalE) % 4));
     }
 
-    private Door GetGlobalEndLocation()
+    public Door GetGlobalEndLocation()
     {
         (int x, int z) globalEndCell = GetGlobalCoordinates(localEndPosition.GetStartCell().x,localEndPosition.GetStartCell().z);
         return new Door(globalEndCell.x,globalEndCell.z,(Direction)(((int)localEndPosition.direction + (int)this.mapDirectionLocalE) % 4));
@@ -171,7 +181,7 @@ class RoomPuzzle : IComponentGeometry
     {
         if (!isRendered)
         {
-            Color color = Color.HSVToRGB(Random.Range(0f,1f), 0.7f, 0.7f);
+            Color color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.7f, 0.7f);
             foreach ((int x, int z) cellCoord in GetGlobalCellsCovered())
             {
                 GameObject cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -194,5 +204,10 @@ class RoomPuzzle : IComponentGeometry
     public int GetIndex()
     {
         return index;
+    }
+
+    public ComponentType GetType()
+    {
+        return cType;
     }
 }

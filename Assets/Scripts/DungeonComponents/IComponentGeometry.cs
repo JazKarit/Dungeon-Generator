@@ -16,8 +16,18 @@ public enum Direction
     S
 };
 
+public enum ComponentType
+{
+    puzzleRoom,
+    corridor,
+    puzzleDoor,
+    superCorridor
+}
+
 public interface IComponentGeometry
 {
+    public Guid Id { get;  } // Unique identifier for the node
+
     public void PlaceStartAtGlobalLocation(Door location);
 
     public List<(int, int)> GetGlobalCellsCovered();
@@ -39,7 +49,11 @@ public interface IComponentGeometry
 
     public void Render();
 
-    public void SetIndex(int i);
 
-    public int GetIndex();
+
+    //public void SetIndex(int i);
+
+    //public int GetIndex();
+
+    public ComponentType GetType();
 }
