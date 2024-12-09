@@ -10,6 +10,8 @@ public interface INode
     public int IterationCreated {get; set; }
 
     public void AddNeighbor(INode neighbor);
+    void RemoveNeighbor(INode neighbor);
+
 
     // Output node and its neighbors as a string
     public string ToStringWithNeighbors();

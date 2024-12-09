@@ -7,11 +7,12 @@ public class Generator : MonoBehaviour
     private int i = 0;
     private Map map;
 
+
     //test
     //test2
     void Start()
     {
-        map = new Map(0,0);
+        map = new Map(new List<(int,int)> {(0,0), (40,0), (0,40), (40,40)});
        // map.AddComponent(new PuzzleDoor(new Door(0,0,Direction.N)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.S)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.E)));
@@ -115,16 +116,20 @@ public class Generator : MonoBehaviour
        if (i < 2)
        {
           //map.KPIECE(1000,i); 
-          map.RRT_KPIECE(10000, 1); 
+          map.RRT_KPIECE(5000, 1); 
           //map.Render();
         //   (int x, int y) fcc = map.FindClosestCell(0,1000);
         //   UnityEngine.Debug.Log($"cloest to 0,1000 {fcc}");
         //   fcc = map.FindClosestCell(500,500);
         //   UnityEngine.Debug.Log($"cloest to 500,500 {fcc}");
       }
-       if (i >= 2)
+       if (i == 2)
        {
-        //map.graph.PrintGraph();
+        //map.graph.PrintGraph();\
+        map.graph.PrintSelfLoops();
+        map.TrimSelfLoops();
+        UnityEngine.Debug.Log("trimmed self loops");
+        map.graph.PrintSelfLoops();
         map.Render();
        }
     }

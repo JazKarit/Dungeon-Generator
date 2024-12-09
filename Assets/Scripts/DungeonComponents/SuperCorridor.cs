@@ -269,6 +269,11 @@ public class SuperCorridor : IComponentGeometry, INode
         }
     }
 
+    public void RemoveNeighbor(INode neighbor)
+    {
+        Neighbors.Remove(neighbor);
+    }
+
     public int GetNumberOfExpansions()
     {
         return numExpansions;

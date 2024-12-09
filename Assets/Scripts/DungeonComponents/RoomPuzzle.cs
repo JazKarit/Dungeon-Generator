@@ -139,7 +139,7 @@ class RoomPuzzle : IComponentGeometry
         return new Door(globalStartCell.x,globalStartCell.z,(Direction)(((int)localDoor.direction + (int)this.mapDirectionLocalE) % 4));
     }
 
-    private Door GetGlobalStartLocation()
+    public Door GetGlobalStartLocation()
     {
         (int x, int z) globalStartCell = GetGlobalCoordinates(localStartPosition.GetStartCell().x,localStartPosition.GetStartCell().z);
         return new Door(globalStartCell.x,globalStartCell.z,(Direction)(((int)localStartPosition.direction + (int)this.mapDirectionLocalE) % 4));
