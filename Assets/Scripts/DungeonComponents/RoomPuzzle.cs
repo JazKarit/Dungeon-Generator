@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using System;
 
@@ -22,10 +23,20 @@ class RoomPuzzle : IComponentGeometry
 
     private List<Door> walls;
 
+    private List<Door> unexpandableDoorways;
+
    //for INode
     public Guid Id { get; set; } // Unique identifier for the node
 
     private Color color;
+
+    public override string ToString()
+    {
+        float avgX = (float)GetGlobalCellsCovered().Average(item => (double)item.x);
+        float avgZ = (float)GetGlobalCellsCovered().Average(item => (double)item.z);
+
+        return $"Puzzle Room: ({avgX},{avgZ},{GetGlobalStartLocation().direction}) - {GetGlobalCellsCovered().Count} cells"; 
+    }
 
     public List<IComponentGeometry> GetAdjacentComponents()
     {
@@ -47,6 +58,7 @@ class RoomPuzzle : IComponentGeometry
         this.localStartPosition = localStartPosition;
         this.localEndPosition = localEndPosition;
         this.filledCells = filledCells;
+        this.unexpandableDoorways = new List<Door>();
         if (walls is null)
         {
             this.walls = new List<Door>();
@@ -101,9 +113,11 @@ class RoomPuzzle : IComponentGeometry
         (int x, int z) localOriginToStartVector = GetTransform(this.localStartPosition.x, this.localStartPosition.z);
         
         this.globalPos = (globalStartCell.x - localOriginToStartVector.x, globalStartCell.z - localOriginToStartVector.z);
+
+        RemoveExpandableDoorway(entranceLocation.GetMirrorDoor());
     }
 
-    public List<(int, int)> GetGlobalCellsCovered()
+    public List<(int x, int z)> GetGlobalCellsCovered()
     {
         List<(int x, int z)> cells = new();
         for (int x = 0; x < filledCells.GetLength(0); x++)
@@ -209,5 +223,26 @@ class RoomPuzzle : IComponentGeometry
     public ComponentType GetType()
     {
         return cType;
+    }
+
+    public List<Door> GetExpandableDoorways()
+    {
+        List<Door> doorways = GetDoorways();
+        foreach (Door door in unexpandableDoorways)
+        {
+            doorways.RemoveAll(d => d.IsEqual(door));
+        }
+        return doorways;
+    }
+
+    public List<Door> GetExpandableDoorwaysWithoutDoors()
+    {
+        List<Door> doorways = GetDoorwaysWithoutDoors();
+        return doorways;
+    }
+
+    public void RemoveExpandableDoorway(Door door)
+    {
+        unexpandableDoorways.Add(door);
     }
 }

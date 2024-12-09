@@ -12,6 +12,8 @@ public class CorridorCell : IComponentGeometry
 
     private List<IComponentGeometry> adjacentComponents;
 
+    private List<Door> unexpandableDoorways;
+
        //for INode
     public Guid Id { get; set; } // Unique identifier for the node
 
@@ -33,17 +35,20 @@ public class CorridorCell : IComponentGeometry
     public CorridorCell()
     {
         Id = Guid.NewGuid();
+        unexpandableDoorways = new List<Door>();
     }
 
     public CorridorCell(int x, int z) 
     {
         this.location = (x,z);
         Id = Guid.NewGuid();
+        unexpandableDoorways = new List<Door>();
     }
 
     public void PlaceStartAtGlobalLocation(Door doorLocation)
     {
         this.location = doorLocation.GetDestinationCell();
+        unexpandableDoorways.Add(doorLocation.GetMirrorDoor());
     }
 
     public List<(int, int)> GetGlobalCellsCovered()
@@ -116,6 +121,31 @@ public class CorridorCell : IComponentGeometry
     public ComponentType GetType()
     {
         return cType;
+    }
+
+    public List<Door> GetExpandableDoorways()
+    {
+        List<Door> doorways = GetDoorways();
+        foreach (Door door in unexpandableDoorways)
+        {
+            doorways.RemoveAll(d => d.IsEqual(door));
+        }
+        return doorways;
+    }
+
+    public List<Door> GetExpandableDoorwaysWithoutDoors()
+    {
+        List<Door> doorways = GetDoorwaysWithoutDoors();
+        foreach (Door door in unexpandableDoorways)
+        {
+            doorways.RemoveAll(d => d.IsEqual(door));
+        }
+        return doorways;
+    }
+
+    public void RemoveExpandableDoorway(Door door)
+    {
+        unexpandableDoorways.Add(door);
     }
 }
 

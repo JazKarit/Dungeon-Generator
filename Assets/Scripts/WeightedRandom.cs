@@ -27,7 +27,7 @@ public class WeightedRandom
         }
         Debug.Log(randomValue);
         Debug.Log(accumulatedWeight);
-        Debug.Log("fali");
+        Debug.Log("fail");
         return -1;  // Should never reach here
     }
 }

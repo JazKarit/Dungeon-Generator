@@ -19,14 +19,29 @@ public class SuperCorridor : IComponentGeometry, INode
     private List<Door> entrances;
     private List<Door> exits;
 
+    private List<Door> expandableDoorways;
+
+    private List<Door> expandableDoorwaysWithoutDoors;
+
+    private List<Door> unexpandableDoorwaysForCells;
+
+    private List<Door> unexpandableDoorwaysForPuzzleRooms;
+
     public List<GameObject> cubes;
     private int index;
+
+    private (float x, float z) avgPos;
 
     public Color color;
    
    //for INode
     public Guid Id {get; set;} // Unique identifier for the node
     public List<INode> Neighbors {get; set;} // Connections to other nodes
+
+    //for KPIECE
+    public int IterationCreated {get; set;}
+
+    private int numExpansions = 0;
 
     public SuperCorridor(IComponentGeometry firstComponent)
     {
@@ -38,14 +53,22 @@ public class SuperCorridor : IComponentGeometry, INode
         walls= new List<Door> ();
         entrances= new List<Door> ();
         exits= new List<Door> ();
+        expandableDoorways = new List<Door> ();
+        expandableDoorwaysWithoutDoors = new List<Door> ();
+        unexpandableDoorwaysForCells = new List<Door> ();
+        unexpandableDoorwaysForPuzzleRooms = new List<Door> ();
+        IterationCreated = 1;
+        
+
+
         index= -1;
 
         Id = Guid.NewGuid();
         Neighbors = new  List<INode>();
         cubes = new List<GameObject>();
 
-        //color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.3f, 0.4f);
-        color = Color.white;
+        color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.3f, 0.4f);
+        //color = Color.white;
         this.AddComponent(firstComponent);
         renderedCells = new List<(int x, int z)>();
     }
@@ -64,21 +87,43 @@ public class SuperCorridor : IComponentGeometry, INode
         walls.AddRange(nextComponent.GetWalls());
         entrances.AddRange(nextComponent.GetEntrances());
         exits.AddRange(nextComponent.GetExits());
+        if(nextComponent is INode n)
+        {
+            IterationCreated = Mathf.Min(IterationCreated,n.IterationCreated);
+        }
+        
+        
+
+        // Find where the new component connects to our current one,
+        // These are no longer expandable
+        List<Door> doorwaysToRemove = new List<Door>();
+        foreach (var doorway in expandableDoorways)
+        {
+            foreach (var cDoorway in nextComponent.GetExpandableDoorways())
+            {
+                if (doorway == cDoorway)
+                {
+                    doorwaysToRemove.Add(doorway);
+                }
+            }
+        }
+
+        expandableDoorways.AddRange(nextComponent.GetExpandableDoorways());
+        expandableDoorwaysWithoutDoors.AddRange(nextComponent.GetExpandableDoorwaysWithoutDoors());
+
+        foreach (var doorway in doorwaysToRemove)
+        {
+            RemoveExpandableDoorway(doorway);
+        }
 
         if (nextComponent.GetType() == ComponentType.superCorridor)
         {
-            //Debug.Log("Super Corridors merged");
-
-            // foreach (var cell in globalCellsCovered)
-            // {
-            //     Debug.Log(cell);
-            // }
-
-
             Neighbors.AddRange(((SuperCorridor)nextComponent).Neighbors);
             cubes.AddRange(((SuperCorridor)nextComponent).cubes);
             renderedCells.AddRange(((SuperCorridor)nextComponent).renderedCells);
         }
+        avgPos = ((float)globalCellsCovered.Average(item => (double)item.x),(float)globalCellsCovered.Average(item => (double)item.z));
+
     }
 
 
@@ -224,12 +269,33 @@ public class SuperCorridor : IComponentGeometry, INode
         }
     }
 
+    public int GetNumberOfExpansions()
+    {
+        return numExpansions;
+    }
+    public void AddExpansion()
+    {
+        numExpansions++;
+    }
+
+    // TODO: see if this is good or not
+    public float GetCoverage()
+    {
+        return Mathf.Log(GetGlobalCellsCovered().Count + 1);
+    }
+
     public override string ToString()
     {
-        double avgX = globalCellsCovered.Average(item => item.x);
-        double avgZ = globalCellsCovered.Average(item => item.z);
+        float avgX = (float)globalCellsCovered.Average(item => (double)item.x);
+        float avgZ = (float)globalCellsCovered.Average(item => (double)item.z);
 
         return $"Super Corridor: ({avgX},{avgZ}) - {globalCellsCovered.Count} cells"; 
+    }
+
+    public (float x, float z)  AvgPos()
+    {
+
+        return avgPos; 
     }
 
     public string ToStringWithNeighbors()
@@ -237,6 +303,79 @@ public class SuperCorridor : IComponentGeometry, INode
         var neighbors = string.Join(", ", Neighbors.Select(n => n.ToString()));
         return $"Node {ToString()}: [{neighbors}]";
     }
+
+    public List<Door> GetExpandableDoorways()
+    {
+        List<Door> doorways = new List<Door>();
+        List<Door> doorwaysToRemove = new List<Door>();
+        foreach (Door doorway in expandableDoorways)
+        {
+            (int x, int z) cell = doorway.GetDestinationCell();
+
+            // Ensure that destination cell is empty
+            if (!globalCellsCovered.Contains(cell))
+            {
+                doorways.Add(doorway);
+            }
+        }
+        
+        // Remove failures while we're here
+        foreach (Door doorway in doorwaysToRemove)
+        {
+            expandableDoorwaysWithoutDoors.RemoveAll(d => d.IsEqual(doorway));
+            expandableDoorways.RemoveAll(d => d.IsEqual(doorway));
+        }
+        
+        return doorways;
+    }
+
+    // public List<Door> GetExpandableDoorways(ComponentType type)
+    // {
+    //     if (type == ComponentType.co)
+    // }
+
+    public List<Door> GetExpandableDoorwaysWithoutDoors()
+    {
+        List<Door> doorways = new List<Door>();
+        List<Door> doorwaysToRemove = new List<Door>();
+        foreach (Door doorway in expandableDoorwaysWithoutDoors)
+        {
+            (int x, int z) cell = doorway.GetDestinationCell();
+
+            // Ensure that destination cell is empty
+            if (!globalCellsCovered.Contains(cell))
+            {
+                doorways.Add(doorway);
+            }
+        }
+        
+        // Remove failures while we're here
+        foreach (Door doorway in doorwaysToRemove)
+        {
+            expandableDoorwaysWithoutDoors.RemoveAll(d => d.IsEqual(doorway));
+            expandableDoorways.RemoveAll(d => d.IsEqual(doorway));
+        }
+        
+        return doorways;
+    }
+
+    public void RemoveExpandableDoorway(Door door)
+    {
+        expandableDoorways.RemoveAll(d => d.IsEqual(door));
+        expandableDoorwaysWithoutDoors.RemoveAll(d => d.IsEqual(door));
+    }
+
+    // public void RemoveExpandableDoorway(Door door, ComponentType type)
+    // {
+    //     if (type == ComponentType.corridor || type == ComponentType.superCorridor)
+    //     {
+    //         unexpandableDoorwaysForCells.Add(door);
+    //     }
+    //     else if (type == ComponentType.puzzleRoom)
+    //     {
+    //         unexpandableDoorwaysForPuzzleRooms.Add(door);
+    //     }
+    // }
 }
 
 

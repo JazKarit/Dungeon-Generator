@@ -120,4 +120,9 @@ public class Door
                 return (0,0);
         }
     }
+
+    public override string ToString()
+    {
+        return $"Door: ({this.x},{this.z},{this.direction})"; 
+    }
 }

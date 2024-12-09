@@ -1,0 +1,18 @@
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using System;
+
+
+class SuperMap
+{
+    List<Map> maps = new();
+    
+    public SuperMap(List<(int,int) seeds)
+    {
+        foreach (var seed in seeds)
+        {
+            maps.Add(new Map(seedX,seedY))
+        }
+    }
+}

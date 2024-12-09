@@ -30,13 +30,24 @@ public interface IComponentGeometry
 
     public void PlaceStartAtGlobalLocation(Door location);
 
-    public List<(int, int)> GetGlobalCellsCovered();
+    public List<(int x, int z)> GetGlobalCellsCovered();
 
     public List<Door> GetDoors();
 
     public List<Door> GetDoorways();
 
-    //public List<Door> GetExpandableDoors();
+    public List<Door> GetExpandableDoorways();
+
+    public List<Door> GetExpandableDoorwaysWithoutDoors();
+
+    public void RemoveExpandableDoorway(Door door);
+
+    /// <summary>
+    /// Only remove the doorway from expansion for a certain ComponentType.
+    /// </summary>
+    /// <param name="door">Doorway to remove</param>
+    /// <param name="type">Type of component to disallow</param>
+    //public void RemoveExpandableDoorway(Door door, ComponentType type);
 
     public List<Door> GetDoorwaysWithoutDoors();
     public List<Door> GetDoorwaysWithDoors();

@@ -11,22 +11,22 @@ public class Generator : MonoBehaviour
     //test2
     void Start()
     {
-        map = new Map();
+        map = new Map(0,0);
        // map.AddComponent(new PuzzleDoor(new Door(0,0,Direction.N)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.S)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.E)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.W)));
         
-        map.AddComponent(new CorridorCell(0,0));
+        //map.AddComponent(new CorridorCell(0,0));
         //map.AddComponent(new CorridorCell(0,1));
-        map.AddComponent(new CorridorCell(-1,-8));
+        //map.AddComponent(new CorridorCell(-1,-8));
 
-        bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
+        // bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
 
-        var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
-        puzzleRoom.PlaceStartAtGlobalLocation(new Door(0,0,Direction.S));
+        // var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
+        // puzzleRoom.PlaceStartAtGlobalLocation(new Door(0,0,Direction.S));
 
-        map.AddComponent(puzzleRoom);
+        // map.AddComponent(puzzleRoom);
 
         // TODO: check diff directions different orientations
        // bool [,] filledCells2 = {{true,true},{true,false}};
@@ -112,14 +112,20 @@ public class Generator : MonoBehaviour
     //         }
     //     }
      //  }
-       if (i%10 == 0)// && i < 1000)
+       if (i < 2)
        {
-          map.EST(1); 
-          map.Render();
+          //map.KPIECE(1000,i); 
+          map.RRT_KPIECE(10000, 1); 
+          //map.Render();
+        //   (int x, int y) fcc = map.FindClosestCell(0,1000);
+        //   UnityEngine.Debug.Log($"cloest to 0,1000 {fcc}");
+        //   fcc = map.FindClosestCell(500,500);
+        //   UnityEngine.Debug.Log($"cloest to 500,500 {fcc}");
+      }
+       if (i >= 2)
+       {
+        //map.graph.PrintGraph();
+        map.Render();
        }
-    //    if (i % 1000 == 0)
-    //    {
-    //     map.graph.PrintGraph();
-    //    }
     }
 }

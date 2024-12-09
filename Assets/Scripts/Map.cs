@@ -28,9 +28,9 @@ class Map
 
     //private List<List<int>> adjDoors;
     
-    public Map()
+    public Map(int seedX, int seedY)
     {
-        
+        AddComponent(new CorridorCell(seedX,seedY));
     }
 
     public IComponentGeometry GetComponentAt((int x, int z) cell)
@@ -225,7 +225,7 @@ class Map
         // UnityEngine.Debug.Log(!DoorsCollideWithMap(component.GetDoors()));
         // UnityEngine.Debug.Log(!WallsCollideWithMap(component.GetDoors()));
         // UnityEngine.Debug.Log(!CreatesInvalidPuzzleConnection(component));
-        return !CellsCollideWithMap(cCells) && !DoorsCollideWithMap(component.GetDoors()) && !WallsCollideWithMap(component.GetDoors()) && !CreatesInvalidPuzzleConnection(component);
+        return !CellsCollideWithMap(cCells) && !DoorsCollideWithMap(component.GetDoors()) && !WallsCollideWithMap(component.GetDoors()) && !CreatesInvalidPuzzleConnection(component, true);
     }
 
 
@@ -335,37 +335,55 @@ class Map
         return GetAdjacentComponentIndexesWithoutDoor(components[componentInd]);
     }
 
-    public bool CreatesInvalidPuzzleConnection(IComponentGeometry component)
+    /// <summary>
+    /// Check if the new component would create a unneccesary puzzle. 
+    /// </summary>
+    /// <param name="component"></param>
+    /// <param name="dissallowSecondNeighbors">Make function more strict so two puzzles cannot connect the same two nodes
+    /// </param>
+    /// <returns></returns>
+    public bool CreatesInvalidPuzzleConnection(IComponentGeometry component, bool dissallowSecondNeighbors)
     {
-        // IMPORTANT: This method has been made more strict so two puzzles cannot connect the same two nodes
-
-        //if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
+                //if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
         if(component.GetType() == ComponentType.corridor)
         {
-            return CorridorConnectsPuzzleConnectedSuperCorridors(component);
+            return CorridorConnectsPuzzleConnectedSuperCorridors(component, dissallowSecondNeighbors);
         }
         //if puzzleroom, check that the puzzleroom start and end are not the same supercorridor 
         if(component.GetType() == ComponentType.puzzleRoom)
         {
-            return PuzzleConnectsToSameSuperCorridor(component);
+            return PuzzleConnectsToSameSuperCorridor(component, dissallowSecondNeighbors);
         }
-        return CorridorConnectsPuzzleConnectedSuperCorridors(component) || PuzzleConnectsToSameSuperCorridor(component);
+        return CorridorConnectsPuzzleConnectedSuperCorridors(component, dissallowSecondNeighbors) || PuzzleConnectsToSameSuperCorridor(component, dissallowSecondNeighbors);
     }
 
     //if corridor, check that the corridor does not connect supercorridors that are already connected via puzzle room 
-    private bool CorridorConnectsPuzzleConnectedSuperCorridors(IComponentGeometry component)
+    private bool CorridorConnectsPuzzleConnectedSuperCorridors(IComponentGeometry component, bool dissallowSecondNeighbors = false)
     {
         var adjComponents = GetAdjacentComponents(component);
 
         var adjSuperCorridors = new List<SuperCorridor>();
 
+        
         foreach (var adjComponent in adjComponents)
         {
+            bool alreadyAddedSuperCorridor = false;
             //UnityEngine.Debug.Log(adjComponent);
             //UnityEngine.Debug.Log(adjComponents);
-            if (adjComponent.GetType() == ComponentType.superCorridor)
+            if (adjComponent.GetType() == ComponentType.superCorridor )
             {
-                adjSuperCorridors.Add((SuperCorridor)adjComponent);
+                foreach (var sc in adjSuperCorridors)
+                {
+                    if(sc.Id == ((SuperCorridor)adjComponent).Id)
+                    {
+                        alreadyAddedSuperCorridor = true;
+                        continue;
+                    }
+                }
+                if(!alreadyAddedSuperCorridor)
+                {
+                    adjSuperCorridors.Add((SuperCorridor)adjComponent);
+                }
             }
         }
         for (int i =0; i<adjSuperCorridors.Count-1;i++)
@@ -375,9 +393,13 @@ class Map
                 foreach (var neighbor in adjSuperCorridors[i].Neighbors)
                 {
                     if(neighbor.Id == adjSuperCorridors[k].Id) return true;
-                    foreach (var secondNeighbor in neighbor.Neighbors)
+                    
+                    if (dissallowSecondNeighbors)
                     {
-                        if(secondNeighbor.Id == adjSuperCorridors[k].Id) return true;
+                        foreach (var secondNeighbor in neighbor.Neighbors)
+                        {
+                            if(secondNeighbor.Id == adjSuperCorridors[k].Id) return true;
+                        }
                     }
                 }
             }
@@ -411,7 +433,7 @@ class Map
     }
 
     //if puzzleroom, check that the puzzleroom start and end are not the same supercorridor 
-    public bool PuzzleConnectsToSameSuperCorridor(IComponentGeometry component)
+    public bool PuzzleConnectsToSameSuperCorridor(IComponentGeometry component, bool dissallowSecondNeighbors = false)
     {          
         var doorways = component.GetDoorwaysWithDoors();
         var doorwayDestCell1 = doorways[0].GetDestinationCell();
@@ -422,12 +444,15 @@ class Map
         var c2 = cellToComponent[doorwayDestCell2];
         if(c1 == c2) return true;
 
-        //The super corridors already have a puzzle between them
-        foreach(var neighbor in graph.GetNode(c1).Neighbors)
+        if(dissallowSecondNeighbors)
         {
-            if(neighbor.Id == c2) return true;
+            //The super corridors already have a puzzle between them
+            foreach(var neighbor in graph.GetNode(c1).Neighbors)
+            {
+                if(neighbor.Id == c2) return true;
+            }
         }
-
+        
         return false;
 
 
@@ -530,7 +555,7 @@ class Map
         return new List<int> ();
     }
 
-    public bool AddComponent(IComponentGeometry component)
+    public bool AddComponent(IComponentGeometry component, int iteration = 1)
     {
         //for now either expecting a IComponentGeometry of type corridor or puzzleRoom
 
@@ -548,9 +573,17 @@ class Map
 
         if (component.GetType() == ComponentType.puzzleRoom)
         {
-            (var endCell_x, var endCell_z) = ((RoomPuzzle)component).GetGlobalEndLocation().GetDestinationCell(); 
+            Door endDoor = ((RoomPuzzle)component).GetGlobalEndLocation();
+
+            // Auto add a cell on the other end of the puzzle room
+            (var endCell_x, var endCell_z) = endDoor.GetDestinationCell(); 
             var newCell = new CorridorCell(endCell_x,endCell_z);
-            AddComponent(newCell);
+            bool success = AddComponent(newCell, iteration);
+            if (success)
+            {
+                newCell.RemoveExpandableDoorway(endDoor.GetMirrorDoor());
+                component.RemoveExpandableDoorway(endDoor);
+            }
             if (!ValidityCheck(component))
             {
                 return false;
@@ -597,6 +630,7 @@ class Map
             if (adjSuperCorridors.Count == 0)
             {
                 component = new SuperCorridor(component);
+                ((INode)component).IterationCreated = iteration;
                 graph.AddNode((SuperCorridor)component);
             }
             //if it touches 1 supercorridor, it becomes part of that supercorridor
@@ -716,7 +750,7 @@ class Map
     /// is equal chance to add puzzle room or cell
     /// </summary>
     /// <param name="iterations"></param>
-     public void EST(int iterations)
+    public void EST(int iterations)
     {
         
         // TODO: Maintain mincut 3 as graph is grown?
@@ -734,6 +768,7 @@ class Map
             
             var expandNode = nodes[expandIndex];
 
+            var success = false;
             if(expandNode is SuperCorridor component)
             {
                 int numCells = component.GetGlobalCellsCovered().Count;  
@@ -743,26 +778,43 @@ class Map
                 if (r <  Mathf.Exp(-0.04f*numCells))
                 {
                     // Add Cell
-                    var doorways = component.GetAvailableDoorways();
+                    var doorways = component.GetExpandableDoorways();
                     if (doorways.Count > 0)
                     {
                         var ind = UnityEngine.Random.Range(0,doorways.Count);
                         var cell = new CorridorCell();
                         cell.PlaceStartAtGlobalLocation(doorways[ind]);
-                        AddComponent(cell);
+                        success = AddComponent(cell);
+                        if (!success)
+                        {
+                            var dest = doorways[ind].GetDestinationCell();
+                            Debug.Log($"Failed to add cell at {dest} from {doorways[ind]} ");
+                        }
                     }
+                    
                 } 
                 else
                 {
                     // Add PuzzleRoom
-                    var doorways = component.GetAvailableDoorwaysWithoutDoor();
+
+                    // Just changed this
+                    var doorways = component.GetExpandableDoorwaysWithoutDoors();
                     if (doorways.Count > 0)
                     {
                         var ind = UnityEngine.Random.Range(0,doorways.Count);
                         bool [,] filledCells = {{true}};
                         var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
                         puzzleRoom.PlaceStartAtGlobalLocation(doorways[ind]);
-                        AddComponent(puzzleRoom);
+                        success = AddComponent(puzzleRoom);
+                        if (success)
+                        {
+                            component.RemoveExpandableDoorway(doorways[ind]);
+                        }
+                        if (!success)
+                        {
+                            var dest = doorways[ind].GetDestinationCell();
+                            Debug.Log($"Failed to add puzzle room at {dest} from {doorways[ind]} ");
+                        }
                     }
                 }
             }
@@ -771,5 +823,258 @@ class Map
                 UnityEngine.Debug.Log("Uh oh");
             }
         }
+    }
+
+    /// <summary>
+    /// Expand nodes. 
+    /// </summary>
+    /// <param name="iterations"></param>
+    public void KPIECE(int iterations, int startIteration)
+    {
+        
+        // TODO: Maintain mincut 3 as graph is grown?
+        for (int i = 0; i < iterations; i++)
+        {
+            List<INode> nodes = graph.GetAllNodes().ToList();
+            float [] weights = new float[nodes.Count];
+
+            for (int j = 0; j < nodes.Count; j++)
+            {
+                // todo add score?
+                int iteration = nodes[j].IterationCreated;
+                var expansions = nodes[j].GetNumberOfExpansions()+1f;
+                var neighbors = nodes[j].Neighbors.Count+1f;
+                float coverage =  nodes[j].GetCoverage();
+                
+                var weight = Mathf.Log(iteration + 1) / (expansions * neighbors * coverage);
+                weights[j] = weight;
+
+                //UnityEngine.Debug.Log($"Iteration: {iteration}, Expansions: {expansions}, Neighbors: {neighbors}, Coverage: {coverage}, Weight: {weight}");
+
+            }
+
+            int expandIndex = WeightedRandom.GetWeightedRandomIndex(weights);
+            
+            var expandNode = nodes[expandIndex];
+
+            var success = false;
+            if(expandNode is SuperCorridor component)
+            {
+                int numCells = component.GetGlobalCellsCovered().Count;  
+                
+                float r = UnityEngine.Random.value;
+
+                if (r <  Mathf.Exp(-0.004f*numCells))
+                {
+                    // Add Cell
+                    var doorways = component.GetExpandableDoorways();
+                    if (doorways.Count > 0)
+                    {
+                        var ind = UnityEngine.Random.Range(0,doorways.Count);
+                        var cell = new CorridorCell();
+                        cell.PlaceStartAtGlobalLocation(doorways[ind]);
+                        success = AddComponent(cell);
+                        component.AddExpansion();
+                        //}
+                        if (!success)
+                        {
+                            var dest = doorways[ind].GetDestinationCell();
+                            //Debug.Log($"Failed to add cell at {dest} from {doorways[ind]} ");
+                        }
+                    }
+                    
+                } 
+                else
+                {
+                    // Add PuzzleRoom
+
+                    // Just changed this
+                    var doorways = component.GetExpandableDoorwaysWithoutDoors();
+                    if (doorways.Count > 0)
+                    {
+                        var ind = UnityEngine.Random.Range(0,doorways.Count);
+                        bool [,] filledCells = {{true}};
+                        var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
+                        puzzleRoom.PlaceStartAtGlobalLocation(doorways[ind]);
+                        success = AddComponent(puzzleRoom, i + startIteration);
+                        component.AddExpansion();
+                        if (success)
+                        {
+                            Debug.Log("Added Puzzle Room");
+                            component.RemoveExpandableDoorway(doorways[ind]);
+                        }
+                        if (!success)
+                        {
+                            var dest = doorways[ind].GetDestinationCell();
+                            //Debug.Log($"Failed to add puzzle room at {dest} from {doorways[ind]} ");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                UnityEngine.Debug.Log("Uh oh");
+            }
+        }
+    }
+
+    public void RRT(int iterations, int startIteration)
+    {  
+        for(int i = 0; i<iterations; i++)
+        {
+        
+            //generate random destination
+            var range = 80;
+            int randX = UnityEngine.Random.Range(-range,range);
+            int randZ = UnityEngine.Random.Range(-range,range);
+            UnityEngine.Debug.Log($"randX {randX}");
+            UnityEngine.Debug.Log($"randZ {randZ}");
+
+            //find closest cell
+            (int closeX, int closeZ) =FindClosestCell(randX, randZ);
+            var nodeGuid = cellToComponent[(closeX,closeZ)];
+            var expandNode =components[nodeGuid];
+
+            //determine expansion direction
+            var direction = Direction.W;
+            var xDiff = randX - closeX;
+            var zDiff = randZ - closeZ;
+            if(Mathf.Abs(xDiff)>Mathf.Abs(zDiff)) //expand in x direction
+            {
+                if(xDiff > 0) //expand +X dir
+                {
+                    direction = Direction.E;
+                }
+                else //expand -X dir
+                {
+                    direction = Direction.W;
+                }
+            }
+            else //expand in z direction 
+            {
+                if(zDiff > 0) //expand +Z dir
+                {
+                    direction = Direction.N;
+                }
+                else //expand -Z dir
+                {
+                    direction = Direction.S;
+                }
+            }
+
+
+            //direction randomizer
+            int randDir = UnityEngine.Random.Range(0 ,4);
+            direction = (Direction)randDir;
+
+            Door door2expand = new Door(closeX,closeZ, direction);
+
+            var success = false;
+            if(expandNode is SuperCorridor component)
+            {
+                int numCells = component.GetGlobalCellsCovered().Count;  
+                
+                float r = UnityEngine.Random.value;
+
+                if (r <  Mathf.Exp(-0.004f*numCells))
+                {
+
+                            var cell = new CorridorCell();
+                            cell.PlaceStartAtGlobalLocation(door2expand);
+                            success = AddComponent(cell);
+                            component.AddExpansion();
+
+                } 
+                else
+                {
+                    // Add PuzzleRoom
+
+                    bool [,] filledCells = {{true}};
+                    var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,0,Direction.E), filledCells, new List<Door> { new Door(0,0,Direction.N),new Door(0,0,Direction.S)});
+                    puzzleRoom.PlaceStartAtGlobalLocation(door2expand);
+                    success = AddComponent(puzzleRoom, i + startIteration);
+                    component.AddExpansion();
+                    if (success)
+                    {
+                        Debug.Log("Added Puzzle Room");
+                        component.RemoveExpandableDoorway(door2expand);
+                    }
+
+                }
+            }
+            else
+            {
+                UnityEngine.Debug.Log("Uh oh");
+            }
+        }
+
+    }
+
+
+    public void RRT_KPIECE(int iterations, int startIteration)
+    {
+        for (int i = 0; i < iterations; i++)
+        {
+            var rand = UnityEngine.Random.value;
+            if (rand > 0.8)
+            {
+                RRT(1, i + startIteration);
+            }
+            else
+            {
+                KPIECE(1, i + startIteration);
+            }
+        }
+    }
+    
+
+    public (int x, int z)  FindClosestCell(int x, int z)
+    {
+        //public Dictionary<Guid,IComponentGeometry> components = new();
+        SuperCorridor closest = null;
+        float minDistance = float.MaxValue;
+        (float,float) target = (x,z);
+
+        foreach (var component in components.Values)
+        {
+            if(component.GetType() == ComponentType.superCorridor)
+            {
+                float distance = GetDistance(((SuperCorridor)component).AvgPos(), target);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closest = (SuperCorridor)component;
+                }
+            }
+
+        }
+
+        List<(int x, int z)> closestCells = closest.GetGlobalCellsCovered();
+        int closestX = 0;
+        int closestZ = 0;
+        minDistance = float.MaxValue;
+        foreach (var closestCell in closestCells)
+        {
+            var nextX = (float)closestCell.x;
+            var nextZ = (float)closestCell.z;
+            float distance = GetDistance((nextX,nextZ), target);
+            if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closestX = closestCell.x;
+                    closestZ = closestCell.z;
+                }
+        }
+
+        return (closestX,closestZ); 
+    }
+
+
+    static float GetDistance((float x, float y) point1, (float x, float y) point2)
+    {
+        float dx = point1.x - point2.x;
+        float dy = point1.y - point2.y;
+        //return Math.Sqrt(dx * dx + dy * dy); //euclidean
+        return Mathf.Abs(dx) + Mathf.Abs(dy); //manhattan
     }
 }
