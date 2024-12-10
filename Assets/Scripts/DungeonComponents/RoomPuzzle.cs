@@ -195,7 +195,7 @@ class RoomPuzzle : IComponentGeometry
     {
         if (!isRendered)
         {
-            Color color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.7f, 0.7f);
+            Color color = Color.HSVToRGB(0.5f, 0.7f, 0.7f);
             foreach ((int x, int z) cellCoord in GetGlobalCellsCovered())
             {
                 GameObject cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -204,8 +204,8 @@ class RoomPuzzle : IComponentGeometry
                 cell.GetComponent<Renderer>().material.color = color;
             }
 
-            GetGlobalStartLocation().Render(Color.blue);
-            GetGlobalEndLocation().Render(Color.blue);
+            GetGlobalStartLocation().Render(Color.white);
+            GetGlobalEndLocation().Render(Color.white);
             isRendered = true;
         }
     }

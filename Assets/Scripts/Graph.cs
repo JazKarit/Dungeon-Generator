@@ -8,10 +8,30 @@ public class Graph
     private Dictionary<Guid, INode> nodes;
     public (int x, int z) Seed {get; set;}
 
+    private List<Graph> goalGraphs;
+
     public Graph(int seedX, int seedZ)
     {
         nodes = new Dictionary<Guid, INode>();
         Seed = (seedX, seedZ);
+        goalGraphs = new List<Graph>();
+    }
+
+    public void AddGoalGraph(Graph graph)
+    {
+        goalGraphs.Add(graph);
+    }
+
+    public (int x, int z)? GoalSample()
+    {
+        if (goalGraphs.Count == 0)
+        {
+            return null;
+        }
+        var r = UnityEngine.Random.Range(0,goalGraphs.Count);
+        
+        return ((int)goalGraphs[r].GetRandomNode().GetPosition().x, (int)goalGraphs[r].GetRandomNode().GetPosition().z);
+        //return goalGraphs[r].Seed;
     }
 
 
@@ -19,6 +39,13 @@ public class Graph
     {
         if (nodes.ContainsKey(id))
         {
+            foreach(var neighbor in nodes[id].Neighbors)
+            {
+                if (neighbor.Id != id)
+                {
+                    neighbor.RemoveNeighbor(nodes[id]);
+                }
+            }
             nodes.Remove(id);
         }
     }
@@ -40,6 +67,10 @@ public class Graph
             fromNode.AddNeighbor(toNode);
             toNode.AddNeighbor(fromNode); // For undirected graph
         }
+        else
+        {
+            Debug.Log("Failed to add Edge");
+        }
     }
 
     public INode GetNode(Guid id)
@@ -50,6 +81,16 @@ public class Graph
     public IEnumerable<INode> GetAllNodes()
     {
         return nodes.Values;
+    }
+
+    public INode? GetRandomNode()
+    {
+        if (nodes.Count == 0)
+        {
+            return null;
+        }
+        var r = UnityEngine.Random.Range(0,nodes.Count);
+        return nodes.Values.ToList()[r];
     }
 
     public void PrintGraph()

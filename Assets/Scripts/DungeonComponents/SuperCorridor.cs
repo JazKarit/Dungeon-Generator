@@ -289,6 +289,14 @@ public class SuperCorridor : IComponentGeometry, INode
         return Mathf.Log(GetGlobalCellsCovered().Count + 1);
     }
 
+    public (float x, float z) GetPosition()
+    {
+        float avgX = (float)globalCellsCovered.Average(item => (double)item.x);
+        float avgZ = (float)globalCellsCovered.Average(item => (double)item.z);
+
+        return (avgX, avgZ);
+    }
+
     public override string ToString()
     {
         float avgX = (float)globalCellsCovered.Average(item => (double)item.x);

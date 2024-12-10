@@ -259,4 +259,9 @@ class BossRoom : IComponentGeometry, INode
         var neighbors = string.Join(", ", Neighbors.Select(n => n.ToString()));
         return $"Boss Room {ToString()}: [{neighbors}]";
     }
+
+    public (float x, float z) GetPosition()
+    {
+        return centerPos;
+    }
 }

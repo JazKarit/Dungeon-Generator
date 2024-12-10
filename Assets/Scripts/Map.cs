@@ -26,7 +26,7 @@ class Map
     private (int min, int max) bounds;
 
    
-    public Map(List<(int x, int z)> seeds, int bossRoomRadius, (int min, int max) bounds)
+    public Map(List<(int x, int z)> seeds, int bossRoomRadius, (int min, int max) bounds, int neighborDistance)
     {
         for (int i = 0; i < seeds.Count; i++)
         {
@@ -34,6 +34,21 @@ class Map
             subGraphs.Add(new Graph(seed.x, seed.z));
             //AddComponent(new CorridorCell(seed.x, seed.z), subgraphNum: i);
             AddComponent(new BossRoom(seed, bossRoomRadius), subgraphNum: i);
+        }
+
+        for (int i = 0; i < subGraphs.Count; i++)
+        {
+            var subGraph = subGraphs[i];
+            for (int j = i + 1; j < subGraphs.Count; j++)
+            {
+                // todo only add near sub graphs
+                var otherSubGraph = subGraphs[j];
+                if (GetDistance(subGraph.Seed,otherSubGraph.Seed) < neighborDistance)
+                {
+                    subGraph.AddGoalGraph(otherSubGraph);
+                    otherSubGraph.AddGoalGraph(subGraph);
+                }
+            }
         }
         this.bounds = bounds;
     }
@@ -347,11 +362,23 @@ class Map
         var adjCmpts = new List<IComponentGeometry>();
         foreach (var doorway in component.GetDoorways())
         {
+            bool skipCmpt = false;
             var dest = doorway.GetDestinationCell();
             var cmpt = GetComponentAt(dest);
-            if (cmpt is not null)
+            if (cmpt is not null && !adjCmpts.Contains(cmpt) && cmpt.Id != component.Id)
             {
-                adjCmpts.Add(cmpt);
+                foreach (var wall in cmpt.GetWalls())
+                {
+                    if(doorway.IsEqual(wall))
+                    {
+                        skipCmpt = true;
+                        continue;
+                    }
+                }
+                if(!skipCmpt)
+                {
+                    adjCmpts.Add(cmpt);
+                }
             }
         }//
 
@@ -457,11 +484,16 @@ class Map
                     return false;
                 }
             }
-
+            graph.AddNode((INode)component);
+            if(subgraphNum is int sgn)
+            {
+                subGraphs[sgn].AddNode((INode)component);
+            }
             var doorways = component.GetDoorwaysWithDoors();
             foreach (var doorway in doorways)
             {
                 var destCell = doorway.GetDestinationCell();
+                
                 if (cellToComponent.ContainsKey(destCell))
                 {
                     var neighbor = cellToComponent[destCell];
@@ -504,6 +536,8 @@ class Map
             }
             else
             {
+                //UnityEngine.Debug.Log($"failed to add edge between {doorways[0]} and {doorways[1]} ");
+                
                 return false;
             }
         }
@@ -718,10 +752,6 @@ class Map
                     }
                 }
             }
-            else
-            {
-                UnityEngine.Debug.Log("Uh oh");
-            }
         }
     }
 
@@ -819,14 +849,10 @@ class Map
                     }
                 }
             }
-            else
-            {
-                UnityEngine.Debug.Log("Uh oh");
-            }
         }
     }
 
-    public void RRT(int iterations, int startIteration, int? graphNum = null, float decayParam = 0.004f)
+    public void RRT(int iterations, int startIteration, int? graphNum = null, float decayParam = 0.004f, (int x, int z)? sampleLocation = null)
     {  
         for(int i = 0; i<iterations; i++)
         {
@@ -838,22 +864,33 @@ class Map
                 g = subGraphs[gN];
             }
 
+            (int x, int z) sample = (0,0);
+
             //generate random destination
-            var range = 80;
-            int randX = UnityEngine.Random.Range(bounds.min,bounds.max);
-            int randZ = UnityEngine.Random.Range(bounds.min,bounds.max);
+
+            if (sampleLocation is (int, int) sL)
+            {
+                sample.x = sL.x;
+                sample.z = sL.z;
+            }
+            else
+            {
+                sample.x = UnityEngine.Random.Range(bounds.min,bounds.max);
+                sample.z = UnityEngine.Random.Range(bounds.min,bounds.max);   
+            }
+            
             // UnityEngine.Debug.Log($"randX {randX}");
             // UnityEngine.Debug.Log($"randZ {randZ}");
 
             //find closest cell
-            (int closeX, int closeZ) = FindClosestCell(randX, randZ, graphNum);
+            (int closeX, int closeZ) = FindClosestCell(sample.x, sample.z, graphNum);
             var nodeGuid = cellToComponent[(closeX,closeZ)];
             var expandNode =components[nodeGuid];
 
             //determine expansion direction
             var direction = Direction.W;
-            var xDiff = randX - closeX;
-            var zDiff = randZ - closeZ;
+            var xDiff = sample.x - closeX;
+            var zDiff = sample.z - closeZ;
             if(Mathf.Abs(xDiff)>Mathf.Abs(zDiff)) //expand in x direction
             {
                 if(xDiff > 0) //expand +X dir
@@ -917,21 +954,27 @@ class Map
 
                 }
             }
-            else
-            {
-                UnityEngine.Debug.Log("Uh oh");
-            }
         }
 
     }
 
 
-    public void RRT_KPIECE(int iterations, int startIteration, float decayParam = 0.004f, float ratio = 0.8f, bool useEST = false)
+    public void RRT_KPIECE(int iterations, int startIteration, float decayParam = 0.004f, float ratio = 0.8f, bool useEST = false, float goalSampleChance = 0.05f)
     {
         for (int i = 0; i < iterations; i++)
         {
             int graphNum = i % subGraphs.Count;
+
             var rand = UnityEngine.Random.value;
+
+            // Go to goal
+            if (rand < goalSampleChance)
+            {
+                RRT(1, i + startIteration, graphNum, decayParam,subGraphs[graphNum].GoalSample());
+                continue;
+            }
+            
+            rand = UnityEngine.Random.value;
             if (rand > ratio)
             {
                 RRT(1, i + startIteration, graphNum, decayParam);
@@ -1058,6 +1101,49 @@ class Map
         }
 
         
+    }
+
+    public void RemoveDeadEnds(int numNeighbors)
+    {
+        List<IComponentGeometry> comps2Remove = new List<IComponentGeometry>();
+        List<IComponentGeometry> adjComps2Remove = new List<IComponentGeometry>();
+        foreach(var component in components.Values)
+        {
+            if(component.GetType() == ComponentType.superCorridor)
+            {
+                if(GetAdjacentComponents(component).Count < numNeighbors)
+                {
+                    //RemoveComponent(component);
+                    //UnityEngine.Debug.Log(((INode)component).ToStringWithNeighbors());
+                    comps2Remove.Add(component);
+
+                    
+                    
+                }
+            }
+        }
+
+        foreach(var component in comps2Remove)
+        {
+            RemoveComponent(component);
+            graph.RemoveNode(component.Id);
+            foreach (var adjComp in GetAdjacentComponents(component))
+            {
+                adjComps2Remove.Add(adjComp);
+            }
+            // Remove from subgraph
+            foreach (Graph subgraph in subGraphs)
+            {
+                subgraph.RemoveNode(component.Id);
+            }
+        }   
+        foreach(var component in adjComps2Remove)
+        {
+            if(component.GetType() != ComponentType.bossRoom)
+            {
+                RemoveComponent(component);
+            }
+        }
     }
 
     public void RemoveComponent(IComponentGeometry component)

@@ -12,7 +12,11 @@ public class Generator : MonoBehaviour
     //test2
     void Start()
     {
-        map = new Map(new List<(int,int)> {(0,0), (30,30), (60,0), (0,60), (60,60)}, 3, (-10, 70));
+     // Debug.Log(GenerateBosses(4, 100));
+      
+      var bossCoords = GenerateBosses(20, 100, 20);
+      map = new Map(bossCoords, 3, (-120, 120), 40);
+       // map = new Map(new List<(int,int)> {(0,0), (30,30), (60,0), (0,60), (60,60)}, 3, (-10, 70));
        // map.AddComponent(new PuzzleDoor(new Door(0,0,Direction.N)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.S)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.E)));
@@ -116,7 +120,15 @@ public class Generator : MonoBehaviour
        if (i < 2)
        {
           //map.KPIECE(1000,i); 
-          map.RRT_KPIECE(5000, 1, 0.05f, 0.8f, useEST: true); 
+          UnityEngine.Random.seed = 42;
+          
+          for(int j=0; j < 10; j++)          
+          {
+            map.RRT_KPIECE(10000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
+            map.RemoveDeadEnds(2);
+          }
+          map.RRT_KPIECE(20000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
+
           //map.Render();
         //   (int x, int y) fcc = map.FindClosestCell(0,1000);
         //   UnityEngine.Debug.Log($"cloest to 0,1000 {fcc}");
@@ -130,7 +142,97 @@ public class Generator : MonoBehaviour
         map.TrimSelfLoops();
         //UnityEngine.Debug.Log("trimmed self loops");
         //map.graph.PrintSelfLoops();
+        for(int j=0; j < 100; j++)
+        {
+          map.RemoveDeadEnds(3);
+        }
         map.Render();
        }
     }
+
+
+
+    List<(int x, int z)> GenerateBosses(int numBossRooms, int radius,int minDistBtwnBoss)
+    {
+        //int[,] bossCoords = new int[4,2];
+        List<(int x, int z)> bossCoords = new List<(int x, int z)>();
+        int bossX = 0;
+        int bossZ = 0;
+        int minDist = 0;
+        int maxDist = radius;
+        //int minDistBtwnBoss = 10;
+        //Random rnd = new Random();
+
+        for(int k=0;k<numBossRooms;k++)
+        {
+            
+            bossX = Random.Range(minDist, maxDist);
+            bossX = bossX * (Random.Range(0, 2) * 2 - 1); //ctrl - vs +
+            
+            bossZ = Random.Range(minDist, maxDist);
+            bossZ = bossZ * (Random.Range(0, 2) * 2 - 1); //ctrl - vs +
+
+            //bossCoords[k].x=bossX;
+            //bossCoords[k].z=bossZ;
+            bool valid = true;
+            //validity check
+            for(int j=0;j<bossCoords.Count;j++)
+            {
+                if(j==k)
+                {
+
+                }
+                else
+                {
+                    if(Mathf.Abs(bossCoords[j].x-bossX)<= minDistBtwnBoss && Mathf.Abs(bossCoords[j].z-bossZ) <= minDistBtwnBoss ) //if pair of coords already exist
+                    {
+                        k--; //re-generate this set of coords
+                        valid = false;
+                    }
+                }
+            }
+            if(valid)
+            {
+              bossCoords.Add((bossX,bossZ));
+            }
+        }
+
+        // for(int j=0;j<4;j++)
+        // {
+        //     RenderRoom(bossCoords[j].x, bossCoords[j].z, 3, 3, Color.white);
+        // }    
+        return bossCoords;
+    }
+ 
+
+  // List<(int x, int z)> GenerateBosses(int numBossRooms, int radius)
+  //   {
+  //       var bossCoords = new List<(int x, int z)>();
+  //       int bossX = 0;
+  //       int bossZ = 0;
+  //       int minDistBtwnBoss = 20;
+
+  //       bool ValidBossCoord(int bossX, int bossZ)
+  //       {
+  //           foreach(var coord in bossCoords)
+  //           {
+  //               if(Mathf.Abs(bossX - bossCoords.x) < minDistBtwnBoss
+  //                  || Mathf.Abs(bossZ - bossCoords.z) < minDistBtwnBoss)
+  //               {
+  //                 return false;
+  //               }
+  //           }
+  //           return true;
+  //       }
+
+  //       for(int i=0;i<numBossRooms;i++)
+  //       {
+  //           do {
+  //             bossX = Random.Range(-radius, radius);
+  //             bossZ = Random.Range(-radius, radius);
+  //           }
+  //           while (!ValidBossCooord(bossX, bossZ, bossCoords));
+  //           bossCoords.Add((bossX, bossZ));
+  //       }
+  //   }
 }

@@ -19,4 +19,6 @@ public interface INode
     public int GetNumberOfExpansions();
     public void AddExpansion();
     public float GetCoverage();
+
+    public (float x, float z) GetPosition();
 }
