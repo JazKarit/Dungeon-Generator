@@ -21,7 +21,8 @@ public enum ComponentType
     puzzleRoom,
     corridor,
     puzzleDoor,
-    superCorridor
+    superCorridor,
+    bossRoom
 }
 
 public interface IComponentGeometry

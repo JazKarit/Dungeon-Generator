@@ -12,7 +12,7 @@ public class Generator : MonoBehaviour
     //test2
     void Start()
     {
-        map = new Map(new List<(int,int)> {(0,0), (40,0), (0,40), (40,40)});
+        map = new Map(new List<(int,int)> {(0,0), (30,30), (60,0), (0,60), (60,60)}, 3, (-10, 70));
        // map.AddComponent(new PuzzleDoor(new Door(0,0,Direction.N)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.S)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.E)));
@@ -116,7 +116,7 @@ public class Generator : MonoBehaviour
        if (i < 2)
        {
           //map.KPIECE(1000,i); 
-          map.RRT_KPIECE(5000, 1); 
+          map.RRT_KPIECE(5000, 1, 0.05f, 0.8f, useEST: true); 
           //map.Render();
         //   (int x, int y) fcc = map.FindClosestCell(0,1000);
         //   UnityEngine.Debug.Log($"cloest to 0,1000 {fcc}");
@@ -126,10 +126,10 @@ public class Generator : MonoBehaviour
        if (i == 2)
        {
         //map.graph.PrintGraph();\
-        map.graph.PrintSelfLoops();
+        //map.graph.PrintSelfLoops();
         map.TrimSelfLoops();
-        UnityEngine.Debug.Log("trimmed self loops");
-        map.graph.PrintSelfLoops();
+        //UnityEngine.Debug.Log("trimmed self loops");
+        //map.graph.PrintSelfLoops();
         map.Render();
        }
     }

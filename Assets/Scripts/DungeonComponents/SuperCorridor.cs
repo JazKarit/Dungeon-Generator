@@ -64,7 +64,7 @@ public class SuperCorridor : IComponentGeometry, INode
         index= -1;
 
         Id = Guid.NewGuid();
-        Neighbors = new  List<INode>();
+        Neighbors = new List<INode>();
         cubes = new List<GameObject>();
 
         color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.3f, 0.4f);

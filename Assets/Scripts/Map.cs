@@ -23,15 +23,19 @@ class Map
 
     private Dictionary<(int,int),Guid> cellToComponent = new();
 
+    private (int min, int max) bounds;
+
    
-    public Map(List<(int x, int z)> seeds)
+    public Map(List<(int x, int z)> seeds, int bossRoomRadius, (int min, int max) bounds)
     {
         for (int i = 0; i < seeds.Count; i++)
         {
             var seed = seeds[i];
             subGraphs.Add(new Graph(seed.x, seed.z));
-            AddComponent(new CorridorCell(seed.x, seed.z), subgraphNum: i);
+            //AddComponent(new CorridorCell(seed.x, seed.z), subgraphNum: i);
+            AddComponent(new BossRoom(seed, bossRoomRadius), subgraphNum: i);
         }
+        this.bounds = bounds;
     }
 
     public IComponentGeometry GetComponentAt((int x, int z) cell)
@@ -276,6 +280,7 @@ class Map
             var entryCell = ((RoomPuzzle)component).GetGlobalStartLocation().GetDestinationCell();
             if(!cellToComponent.ContainsKey(destCell) ) return false;
             
+            
             // var doorways = component.GetDoorwaysWithDoors();
             // var doorwayDestCell1 = doorways[0].GetDestinationCell();
             // var doorwayDestCell2 = doorways[1].GetDestinationCell();
@@ -291,8 +296,18 @@ class Map
             var c2 = cellToComponent[entryCell];
             if(c1 == c2) return true;
 
+            // puzzles cannot connect to a boss room directly
+            if (graph.GetNode(c1) is BossRoom || graph.GetNode(c2) is BossRoom)
+            {
+                return true;
+            }
+
             if(dissallowSecondNeighbors)
             {
+                if (graph.GetNode(c1) is null)
+                {
+                    return true;
+                }
                 //The super corridors already have a puzzle between them
                 foreach(var neighbor in graph.GetNode(c1).Neighbors)
                 {
@@ -309,12 +324,6 @@ class Map
 
     private bool ValidityCheck(IComponentGeometry component)
     {
-        
-        // TODO Add blocking doors
-        var cDoorsAndWalls = component.GetDoors();
-        cDoorsAndWalls.AddRange(component.GetWalls());
-        var cCells = component.GetGlobalCellsCovered();
-        
         //check that the cells don't collide with existing cells
         //check that doors don't conflict with walls and doors
         //check that walls con't conflict with doors
@@ -327,7 +336,7 @@ class Map
         // UnityEngine.Debug.Log(!DoorsCollideWithMap(component.GetDoors()));
         // UnityEngine.Debug.Log(!WallsCollideWithMap(component.GetDoors()));
         // UnityEngine.Debug.Log(!CreatesInvalidPuzzleConnection(component));
-        return !CellsCollideWithMap(cCells) && !DoorsCollideWithMap(component.GetDoors()) && !WallsCollideWithMap(component.GetDoors()) && !CreatesInvalidPuzzleConnection(component, true);
+        return !CellsCollideWithMap(component.GetGlobalCellsCovered()) && !DoorsCollideWithMap(component.GetDoors()) && !WallsCollideWithMap(component.GetDoors()) && !CreatesInvalidPuzzleConnection(component, true);
     }
 
 
@@ -426,6 +435,43 @@ class Map
         if (!ValidityCheck(component))
         {
             return false;
+        }
+
+        if (component.GetType() == ComponentType.bossRoom)
+        {
+
+            var doors = component.GetDoorwaysWithDoors();
+
+            foreach (var door in doors)
+            {
+                (var cell_x, var cell_z) = door.GetDestinationCell();
+                var newCell = new CorridorCell(cell_x, cell_z);
+                bool success = AddComponent(newCell, subgraphNum: subgraphNum, iteration: iteration);
+                if (success)
+                {
+                    newCell.RemoveExpandableDoorway(door.GetMirrorDoor());
+                    component.RemoveExpandableDoorway(door);
+                }
+                if (!ValidityCheck(component))
+                {
+                    return false;
+                }
+            }
+
+            var doorways = component.GetDoorwaysWithDoors();
+            foreach (var doorway in doorways)
+            {
+                var destCell = doorway.GetDestinationCell();
+                if (cellToComponent.ContainsKey(destCell))
+                {
+                    var neighbor = cellToComponent[destCell];
+                    graph.AddEdge(component.Id, neighbor);
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
         
         if (component.GetType() == ComponentType.puzzleRoom)
@@ -598,7 +644,7 @@ class Map
     /// is equal chance to add puzzle room or cell
     /// </summary>
     /// <param name="iterations"></param>
-    public void EST(int iterations, int? graphNum)
+    public void EST(int iterations, int? graphNum, float decayParam = 0.004f)
     {
         
         // TODO: Maintain mincut 3 as graph is grown?
@@ -629,7 +675,7 @@ class Map
                 
                 float r = UnityEngine.Random.value;
 
-                if (r <  Mathf.Exp(-0.04f*numCells))
+                if (r <  Mathf.Exp(-1 * decayParam * numCells))
                 {
                     // Add Cell
                     var doorways = component.GetExpandableDoorways();
@@ -683,7 +729,7 @@ class Map
     /// Expand nodes. 
     /// </summary>
     /// <param name="iterations"></param>
-    public void KPIECE(int iterations, int startIteration, int? graphNum = null)
+    public void KPIECE(int iterations, int startIteration, int? graphNum = null, float decayParam = 0.004f)
     {
         
         // TODO: Maintain mincut 3 as graph is grown?
@@ -695,8 +741,8 @@ class Map
             {
                 nodes = subGraphs[gN].GetAllNodes().ToList();
             }
-            graph.PrintGraph();
-            subGraphs[(int)graphNum].PrintGraph();
+            //graph.PrintGraph();
+            //subGraphs[(int)graphNum].PrintGraph();
 
             float [] weights = new float[nodes.Count];
 
@@ -726,7 +772,7 @@ class Map
                 
                 float r = UnityEngine.Random.value;
 
-                if (r <  Mathf.Exp(-0.004f*numCells))
+                if (r <  Mathf.Exp(-1 * decayParam * numCells))
                 {
                     // Add Cell
                     var doorways = component.GetExpandableDoorways();
@@ -762,7 +808,7 @@ class Map
                         component.AddExpansion();
                         if (success)
                         {
-                            Debug.Log("Added Puzzle Room");
+                            //Debug.Log("Added Puzzle Room");
                             component.RemoveExpandableDoorway(doorways[ind]);
                         }
                         if (!success)
@@ -780,7 +826,7 @@ class Map
         }
     }
 
-    public void RRT(int iterations, int startIteration, int? graphNum = null)
+    public void RRT(int iterations, int startIteration, int? graphNum = null, float decayParam = 0.004f)
     {  
         for(int i = 0; i<iterations; i++)
         {
@@ -794,8 +840,8 @@ class Map
 
             //generate random destination
             var range = 80;
-            int randX = UnityEngine.Random.Range(g.Seed.x-range,g.Seed.x+range);
-            int randZ = UnityEngine.Random.Range(g.Seed.z-range,g.Seed.z+range);
+            int randX = UnityEngine.Random.Range(bounds.min,bounds.max);
+            int randZ = UnityEngine.Random.Range(bounds.min,bounds.max);
             // UnityEngine.Debug.Log($"randX {randX}");
             // UnityEngine.Debug.Log($"randZ {randZ}");
 
@@ -845,7 +891,7 @@ class Map
                 
                 float r = UnityEngine.Random.value;
 
-                if (r <  Mathf.Exp(-0.004f*numCells))
+                if (r <  Mathf.Exp(-1 * decayParam * numCells))
                 {
 
                             var cell = new CorridorCell();
@@ -880,19 +926,26 @@ class Map
     }
 
 
-    public void RRT_KPIECE(int iterations, int startIteration)
+    public void RRT_KPIECE(int iterations, int startIteration, float decayParam = 0.004f, float ratio = 0.8f, bool useEST = false)
     {
         for (int i = 0; i < iterations; i++)
         {
             int graphNum = i % subGraphs.Count;
             var rand = UnityEngine.Random.value;
-            if (rand > 0.8)
+            if (rand > ratio)
             {
-                RRT(1, i + startIteration, graphNum);
+                RRT(1, i + startIteration, graphNum, decayParam);
             }
             else
             {
-                KPIECE(1, i + startIteration, graphNum);
+                if (useEST)
+                {
+                    EST(1, graphNum, decayParam);
+                }
+                else
+                {
+                    KPIECE(1, i + startIteration, graphNum, decayParam);
+                }
             }
         }
     }
@@ -950,8 +1003,8 @@ class Map
     {
         float dx = point1.x - point2.x;
         float dy = point1.y - point2.y;
-        //return Math.Sqrt(dx * dx + dy * dy); //euclidean
-        return Mathf.Abs(dx) + Mathf.Abs(dy); //manhattan
+        return Mathf.Sqrt(dx * dx + dy * dy); //euclidean
+        //return Mathf.Abs(dx) + Mathf.Abs(dy); //manhattan
     }
 
     public void TrimSelfLoops()
@@ -982,7 +1035,7 @@ class Map
                         if (ct>1)
                         {
                             RemoveComponent(adjComp);
-                            Debug.Log($"Removed Component: {adjComp}");
+                            //Debug.Log($"Removed Component: {adjComp}");
                         }
                     }
                 }

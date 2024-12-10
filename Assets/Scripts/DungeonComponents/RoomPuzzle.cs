@@ -204,8 +204,8 @@ class RoomPuzzle : IComponentGeometry
                 cell.GetComponent<Renderer>().material.color = color;
             }
 
-            GetGlobalStartLocation().Render(Color.green);
-            GetGlobalEndLocation().Render(Color.red);
+            GetGlobalStartLocation().Render(Color.blue);
+            GetGlobalEndLocation().Render(Color.blue);
             isRendered = true;
         }
     }
