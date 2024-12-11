@@ -2,206 +2,168 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-
-
-//test comment
-
-public enum CellType
-{
-    empty = 0,
-    filled = 1,
-    entrance = 2,
-    exit = 3,
-};
-
-public class RoomPuzzleGeometry
-{
-    public RoomPuzzleGeometry( int[,] cells, int x, int z)
-    {
-        this.cells = cells.Clone() as CellType[,];
-        this.x = x;
-        this.z = z;
-    }
-    // 0 = empty, 1 = filled, 2 = entrance, 3 = exit'
-    // entrance and exit can't be in the corner
-    public CellType [,] cells;
-
-    // number of ccw rotations to get to correct orientation
-    public int rotation = 0;
-
-    public int x;
-    public int z;
-
-    public (int, int) GetFirstLocationOfCellType(CellType cellType)
-    {
-        for (int i = 0; i < cells.GetLength(0); i++)
-        {
-            for (int j = 0; j < cells.GetLength(1); j++)
-            {
-                return (i, j);
-            }
-        }
-        return (-1, -1);
-    }
-}
-
 public class Generator : MonoBehaviour
 {
-    void RenderRoom(float x, float z, float width, float length, Color color)
-    {
-        GameObject room = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        room.transform.position = new Vector3(x, 0.5f, z);
-        room.transform.localScale = new Vector3(width-0.1f, 1, length-0.1f);
-        room.GetComponent<Renderer>().material.color = color;
-    }
+    private int i = 0;
+    private Map map;
 
-    void RenderRoom(float x, float z, float width, float length, float hue, float difficulty)
-    {
-        GameObject room = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        room.transform.position = new Vector3(x, 0.5f, z);
-        room.transform.localScale = new Vector3(width-0.1f, 1, length-0.1f);
-        room.GetComponent<Renderer>().material.color = Color.HSVToRGB(hue, 1f, difficulty);
-    }
 
-    void RenderMarker(float x, float z, Color color)
-    {
-        GameObject entranceMarker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        entranceMarker.transform.position = new Vector3(x, 1.2f, z);
-        entranceMarker.transform.localScale = new Vector3(0.5f, 0.1f, 0.5f);
-        entranceMarker.GetComponent<Renderer>().material.color = color;
-    }
-
-    (int, int) getTransform(int x, int z, int rot)
-    {
-        
-        if (rot == 0)
-        {
-            return (z, x);
-        }
-        else if (rot == 1)
-        {
-            return (x, -z);
-        }
-        else if (rot == 2)
-        {
-            return (-z, -x);
-        }
-        else if (rot == 3)
-        {
-            return (-x, z);
-        }
-        else
-        {
-            throw new System.Exception("Invalid rotation");
-        }
-    }
-
-    void RenderRoomPuzzle(RoomPuzzleGeometry geometry, float hue, float difficulty)
-    {
-        for (int i = 0; i < geometry.cells.GetLength(0); i++)
-        {
-            for (int j = 0; j < geometry.cells.GetLength(1); j++)
-            {
-                if (geometry.cells[i, j] == CellType.empty)
-                {
-                    continue;
-                }
-                (int dx, int dz) = getTransform(i, j, geometry.rotation);
-                RenderRoom(geometry.x + dx, geometry.z - dz, 1, 1, hue, difficulty);
-
-                if (geometry.cells[i, j] == CellType.entrance)
-                {
-                    RenderMarker(geometry.x + dx, geometry.z - dz, Color.white);
-                }
-
-                if (geometry.cells[i, j] == CellType.exit)
-                {
-                    RenderMarker(geometry.x + dx, geometry.z - dz, Color.black);
-                }
-            }
-        }
-    }
-    
-
-    void RenderPuzzleDoor(float x, float z, bool isInXdir, float hue, float difficulty)
-    {
-        GameObject door = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        door.transform.position = new Vector3(x, 0.5f, z);
-        if (isInXdir)
-        {
-            door.transform.localScale = new Vector3(0.1f, 1f, 0.9f);
-        }
-        else
-        {
-            door.transform.localScale = new Vector3(0.9f, 1f, 0.1f);
-        }
-        door.GetComponent<Renderer>().material.color = Color.HSVToRGB(hue, 1f, difficulty);
-    }
-
-    // Only to be used for debugging purposes
-    void RenderCorridor(int xStart, int zStart, int xEnd, int zEnd)
-    {
-        if (zStart == zEnd)
-        {
-            for (int i = xStart; i <= xEnd; i++)
-            {
-                RenderRoom(i, zStart, 1, 1, Color.white);
-            }
-        }
-        else if (xStart == xEnd)
-        {
-            for (int i = zStart; i <= zEnd; i++)
-            {
-                RenderRoom(xStart, i, 1, 1, Color.white);
-            }
-        }
-        else
-        {
-            throw new System.Exception("Corridor must be either horizontal or vertical");
-        }
-        }
-    // Start is called before the first frame update
+    //test
+    //test2
     void Start()
     {
-        RenderRoom(0, 0, 3, 3, Color.white);
-        RenderRoom(10, 10, 3, 3, 0f, 1f);
-        RenderCorridor(2, 0, 10, 0);
-        RenderCorridor(10, 1, 10, 8);
-        RenderPuzzleDoor(10, 0.5f, false, 0f, 0.5f);
+     // Debug.Log(GenerateBosses(4, 100));
+      
+      var bossCoords = GenerateBosses(20, 100, 20);
+      map = new Map(bossCoords, 3, (-120, 120), 40);
+       // map = new Map(new List<(int,int)> {(0,0), (30,30), (60,0), (0,60), (60,60)}, 3, (-10, 70));
+       // map.AddComponent(new PuzzleDoor(new Door(0,0,Direction.N)));
+        // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.S)));
+        // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.E)));
+        // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.W)));
+        
+        //map.AddComponent(new CorridorCell(0,0));
+        //map.AddComponent(new CorridorCell(0,1));
+        //map.AddComponent(new CorridorCell(-1,-8));
+
+        // bool [,] filledCells = {{true,true,false,true,true,true,true},{true,true,true,true,false,true,true}};
+
+        // var puzzleRoom = new RoomPuzzle(new Door(0,0,Direction.W), new Door(1,6,Direction.E), filledCells);
+        // puzzleRoom.PlaceStartAtGlobalLocation(new Door(0,0,Direction.S));
+
+        // map.AddComponent(puzzleRoom);
+
+        // TODO: check diff directions different orientations
+       // bool [,] filledCells2 = {{true,true},{true,false}};
+
+        // var puzzleRoom2 = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,1,Direction.E), filledCells2);
+        // puzzleRoom2.PlaceStartAtGlobalLocation(new Door(0,0,Direction.E));
+
+        // map.AddComponent(puzzleRoom2);
+        // map.AddComponent(new CorridorCell(0,1));
+        // map.AddComponent(new CorridorCell(0,2));
+        // map.AddComponent(new CorridorCell(1,2));
+        // map.AddComponent(new CorridorCell(2,2));
+        // map.AddComponent(new CorridorCell(3,2));
+        // map.AddComponent(new CorridorCell(3,1));
+        // map.AddComponent(new CorridorCell(3,0));
+        // map.AddComponent(new CorridorCell(-1,3));
+        // map.AddComponent(new CorridorCell(-1,0));
+        // map.AddComponent(new CorridorCell(-1,3));
+        // map.AddComponent(new CorridorCell(0,3));
+
+        // var puzzleRoom3 = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,1,Direction.E), filledCells2);
+        // puzzleRoom3.PlaceStartAtGlobalLocation(new Door(-1,3,Direction.S));
+        // map.AddComponent(puzzleRoom3);
 
 
-        var geometry = new int[4,4] {
-            {0, 2, 0, 0},
-            {0, 1, 0, 0},
-            {1, 1, 1, 3},
-            {0, 1, 1, 1},
-        };
-        RoomPuzzleGeometry roomPuzzleGeometry = new RoomPuzzleGeometry(geometry, 1, 2);
-        roomPuzzleGeometry.rotation = 2;
+        //map.Render();
 
-        RenderRoomPuzzle(roomPuzzleGeometry, 0f, 0.8f);
+        
+      // var cmpts = map.GetConnectedComponents(map.GetComponentAt((0,0)));
 
-        int[,] bossCoords =  GenerateBosses();
+    //    foreach (var cmpt in cmpts)
+    //    {
+    //         var cells = cmpt.GetGlobalCellsCovered();
+    //         foreach (var cell in cells)
+    //         {
+    //             Debug.Log(cell);
+    //         }
+    //    }
+
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        i++;
+        // if(i == 0)
+        // {
+        //     var puzzleRoom2 = new RoomPuzzle(new Door(0,0,Direction.W), new Door(0,1,Direction.E), filledCells2);
+        //     puzzleRoom2.PlaceStartAtGlobalLocation(new Door(0,0,Direction.E));
+        //     map.AddComponent(puzzleRoom2);
+        // }
+    //     if(i > 100)
+    //     map.AddComponent(new CorridorCell(0,1));
+    //     if(i > 200)
+    //     map.AddComponent(new CorridorCell(1,2));
+    //     if(i > 300)
+    //     map.AddComponent(new CorridorCell(0,2));
+    //     if(i > 400)
+    //     map.AddComponent(new CorridorCell(2,2));
+    //     if(i > 500)
+    //     map.AddComponent(new CorridorCell(3,2));
+    //     if(i > 600)
+    //     map.AddComponent(new CorridorCell(3,1));
+    //     if(i > 700)
+    //     map.AddComponent(new CorridorCell(3,0));
+    //     if(i > 800)
+    //     map.AddComponent(new CorridorCell(-1,3));
+    //     if(i > 900)
+    //     map.AddComponent(new CorridorCell(-1,0));
+    //     if(i > 1000)
+    //     map.AddComponent(new CorridorCell(-1,3));
+    //     if(i > 1100)
+    //     map.AddComponent(new CorridorCell(0,3));
+    //    map.Render();
+    //    foreach(var component in map.components.Values)
+    //    {
+    //     if (component.GetType() == ComponentType.superCorridor)
+    //     {
+    //         foreach(var cube in ((SuperCorridor)component).cubes)
+    //         {
+    //             cube.SetActive(false);
+    //             cube.GetComponent<Renderer>().material.color = ((SuperCorridor)component).color;
+    //         }
+    //     }
+     //  }
+       if (i < 2)
+       {
+          //map.KPIECE(1000,i); 
+          UnityEngine.Random.seed = 42;
+          
+          for(int j=0; j < 10; j++)          
+          {
+            map.RRT_KPIECE(10000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
+            map.RemoveDeadEnds(2);
+          }
+          map.RRT_KPIECE(20000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
+
+          //map.Render();
+        //   (int x, int y) fcc = map.FindClosestCell(0,1000);
+        //   UnityEngine.Debug.Log($"cloest to 0,1000 {fcc}");
+        //   fcc = map.FindClosestCell(500,500);
+        //   UnityEngine.Debug.Log($"cloest to 500,500 {fcc}");
+      }
+       if (i == 2)
+       {
+        //map.graph.PrintGraph();\
+        //map.graph.PrintSelfLoops();
+        map.TrimSelfLoops();
+        //UnityEngine.Debug.Log("trimmed self loops");
+        //map.graph.PrintSelfLoops();
+        for(int j=0; j < 100; j++)
+        {
+          map.RemoveDeadEnds(3);
+        }
+        map.Render();
+       }
     }
 
 
-    int[,] GenerateBosses()
+
+    List<(int x, int z)> GenerateBosses(int numBossRooms, int radius,int minDistBtwnBoss)
     {
-        int[,] bossCoords = new int[4,2];
+        //int[,] bossCoords = new int[4,2];
+        List<(int x, int z)> bossCoords = new List<(int x, int z)>();
         int bossX = 0;
         int bossZ = 0;
-        int minDist = 5;
-        int maxDist = 50;
-        int minDistBtwnBoss = 3;
+        int minDist = 0;
+        int maxDist = radius;
+        //int minDistBtwnBoss = 10;
         //Random rnd = new Random();
 
-        for(int k=0;k<4;k++)
+        for(int k=0;k<numBossRooms;k++)
         {
             
             bossX = Random.Range(minDist, maxDist);
@@ -210,11 +172,11 @@ public class Generator : MonoBehaviour
             bossZ = Random.Range(minDist, maxDist);
             bossZ = bossZ * (Random.Range(0, 2) * 2 - 1); //ctrl - vs +
 
-            bossCoords[k,0]=bossX;
-            bossCoords[k,1]=bossZ;
-
+            //bossCoords[k].x=bossX;
+            //bossCoords[k].z=bossZ;
+            bool valid = true;
             //validity check
-            for(int j=0;j<4;j++)
+            for(int j=0;j<bossCoords.Count;j++)
             {
                 if(j==k)
                 {
@@ -222,19 +184,54 @@ public class Generator : MonoBehaviour
                 }
                 else
                 {
-                    if(Mathf.Abs(bossCoords[j,0]-bossCoords[k,0])<= minDistBtwnBoss && Mathf.Abs(bossCoords[j,1]-bossCoords[k,1]) <= minDistBtwnBoss ) //if pair of coords already exist
+                    if(Mathf.Abs(bossCoords[j].x-bossX)<= minDistBtwnBoss && Mathf.Abs(bossCoords[j].z-bossZ) <= minDistBtwnBoss ) //if pair of coords already exist
                     {
                         k--; //re-generate this set of coords
+                        valid = false;
                     }
                 }
             }
+            if(valid)
+            {
+              bossCoords.Add((bossX,bossZ));
+            }
         }
 
-        for(int j=0;j<4;j++)
-        {
-            RenderRoom(bossCoords[j,0], bossCoords[j,1], 3, 3, Color.white);
-        }    
+        // for(int j=0;j<4;j++)
+        // {
+        //     RenderRoom(bossCoords[j].x, bossCoords[j].z, 3, 3, Color.white);
+        // }    
         return bossCoords;
     }
+    
+  // List<(int x, int z)> GenerateBosses(int numBossRooms, int radius)
+  //   {
+  //       var bossCoords = new List<(int x, int z)>();
+  //       int bossX = 0;
+  //       int bossZ = 0;
+  //       int minDistBtwnBoss = 20;
 
+  //       bool ValidBossCoord(int bossX, int bossZ)
+  //       {
+  //           foreach(var coord in bossCoords)
+  //           {
+  //               if(Mathf.Abs(bossX - bossCoords.x) < minDistBtwnBoss
+  //                  || Mathf.Abs(bossZ - bossCoords.z) < minDistBtwnBoss)
+  //               {
+  //                 return false;
+  //               }
+  //           }
+  //           return true;
+  //       }
+
+  //       for(int i=0;i<numBossRooms;i++)
+  //       {
+  //           do {
+  //             bossX = Random.Range(-radius, radius);
+  //             bossZ = Random.Range(-radius, radius);
+  //           }
+  //           while (!ValidBossCooord(bossX, bossZ, bossCoords));
+  //           bossCoords.Add((bossX, bossZ));
+  //       }
+  //   }
 }
