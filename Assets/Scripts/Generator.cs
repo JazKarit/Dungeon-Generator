@@ -203,8 +203,7 @@ public class Generator : MonoBehaviour
         // }    
         return bossCoords;
     }
- 
-
+    
   // List<(int x, int z)> GenerateBosses(int numBossRooms, int radius)
   //   {
   //       var bossCoords = new List<(int x, int z)>();
