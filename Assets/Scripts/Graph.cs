@@ -8,7 +8,7 @@ public class Graph
     private Dictionary<Guid, INode> nodes;
     public (int x, int z) Seed {get; set;}
 
-    private List<Graph> goalGraphs;
+    public List<Graph> goalGraphs;
 
     public Graph(int seedX, int seedZ)
     {
