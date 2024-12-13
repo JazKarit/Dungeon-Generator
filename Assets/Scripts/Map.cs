@@ -49,6 +49,14 @@ class Map
                     otherSubGraph.AddGoalGraph(subGraph);
                 }
             }
+
+            // Make sure we have at least one neighbor
+            if (subGraph.goalGraphs.Count == 0 && subGraphs.Count > 1)
+            {
+                var otherSubGraph = subGraphs[ (i+1) % subGraphs.Count];
+                subGraph.AddGoalGraph(otherSubGraph);
+                otherSubGraph.AddGoalGraph(subGraph);
+            }
         }
         this.bounds = bounds;
     }

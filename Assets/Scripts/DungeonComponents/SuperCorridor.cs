@@ -67,7 +67,7 @@ public class SuperCorridor : IComponentGeometry, INode
         Neighbors = new List<INode>();
         cubes = new List<GameObject>();
 
-        color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.3f, 0.4f);
+        color = Color.HSVToRGB(UnityEngine.Random.Range(0f,1f), 0.5f, 0.5f);
         //color = Color.white;
         this.AddComponent(firstComponent);
         renderedCells = new List<(int x, int z)>();
@@ -286,6 +286,7 @@ public class SuperCorridor : IComponentGeometry, INode
     // TODO: see if this is good or not
     public float GetCoverage()
     {
+        return 1;
         return Mathf.Log(GetGlobalCellsCovered().Count + 1);
     }
 

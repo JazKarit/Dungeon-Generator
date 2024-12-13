@@ -13,9 +13,8 @@ public class Generator : MonoBehaviour
     void Start()
     {
      // Debug.Log(GenerateBosses(4, 100));
-      
-      var bossCoords = GenerateBosses(20, 100, 20);
-      map = new Map(bossCoords, 3, (-120, 120), 40);
+      var bossCoords = GenerateBosses(5, 90, 30);
+      map = new Map(bossCoords, 3, (-100, 100), 80);
        // map = new Map(new List<(int,int)> {(0,0), (30,30), (60,0), (0,60), (60,60)}, 3, (-10, 70));
        // map.AddComponent(new PuzzleDoor(new Door(0,0,Direction.N)));
         // map.AddComponent(new PuzzleDoor(new Door(0,1,Direction.S)));
@@ -120,14 +119,14 @@ public class Generator : MonoBehaviour
        if (i < 2)
        {
           //map.KPIECE(1000,i); 
-          UnityEngine.Random.seed = 42;
           
-          for(int j=0; j < 10; j++)          
-          {
-            map.RRT_KPIECE(10000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
-            map.RemoveDeadEnds(2);
-          }
-          map.RRT_KPIECE(20000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
+          
+          // for(int j=0; j < 10; j++)          
+          // {
+          //   map.RRT_KPIECE(10000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: true, goalSampleChance: 0.05f); 
+          //   map.RemoveDeadEnds(2);
+          // }
+          map.RRT_KPIECE(25000, 1, decayParam: 0.05f, ratio: 0.8f, useEST: false, goalSampleChance: 0.1f); 
 
           //map.Render();
         //   (int x, int y) fcc = map.FindClosestCell(0,1000);
